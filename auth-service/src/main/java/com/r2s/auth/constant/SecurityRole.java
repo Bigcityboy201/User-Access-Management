@@ -1,4 +1,6 @@
 package com.r2s.auth.constant;
 
-public enum SecurityRole {
+public class SecurityRole {
+    public static final String ROLE_USER = "USER";
+    public static final String ROLE_ADMIN = "ADMIN";
 }
