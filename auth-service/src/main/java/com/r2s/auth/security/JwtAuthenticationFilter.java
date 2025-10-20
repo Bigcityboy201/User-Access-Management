@@ -35,7 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Validate Token
         // hasText(token):kiểm tra token có tồn tại hay không
-        if (StringUtils.hasText(token) && !this.jwtUtils.isTokenExpired(token)) {
+        if (StringUtils.hasText(token) && this.jwtUtils.validateToken(token)) {
             String userName = this.jwtUtils.extractUsername(token);
 
             UserDetails userDetails = this.userDetailsService.loadUserByUsername(userName);
