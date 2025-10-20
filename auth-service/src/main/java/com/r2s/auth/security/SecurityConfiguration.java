@@ -62,10 +62,8 @@ public class SecurityConfiguration {
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf(AbstractHttpConfigurer::disable);
 
-        http.authorizeHttpRequests(auths -> auths.requestMatchers(WHITE_LIST).permitAll().requestMatchers("/users/**")
-                        .hasAnyAuthority("USER", "ADMIN").requestMatchers("/profiles/**").hasRole("USER")
-                        .requestMatchers("/class-rooms/**").hasAnyAuthority("ADMIN")
-//						// /addresses/create -> ADMIN != /addresses/create1
+        http.authorizeHttpRequests(auths -> auths.requestMatchers(WHITE_LIST).permitAll()
+                        .requestMatchers("/role/**").authenticated()
                         .anyRequest().authenticated())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(this.authenticationProvider())
