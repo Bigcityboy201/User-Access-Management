@@ -1,4 +1,4 @@
-package com.r2s.auth.entity;
+package com.r2s.core.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -6,6 +6,7 @@ import lombok.*;
 import java.util.List;
 
 @Entity
+@Table(name = "roles")
 @Getter
 @Setter
 @AllArgsConstructor
@@ -21,9 +22,10 @@ public class Role {
 
     private String description;
 
-    @Column(columnDefinition = "bit default 1")
+    @Column(name = "is_active", nullable = false, columnDefinition = "boolean default true")
     private boolean isActive;
 
     @ManyToMany(mappedBy = "roles")
     private List<User> users;
 }
+

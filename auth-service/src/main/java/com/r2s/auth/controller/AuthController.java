@@ -1,10 +1,10 @@
 package com.r2s.auth.controller;
 
-import com.r2s.auth.dto.request.SignInRequest;
-import com.r2s.auth.dto.request.SignUpRequest;
-import com.r2s.auth.dto.response.SignInResponse;
+import com.r2s.core.dto.request.SignInRequest;
+import com.r2s.core.dto.request.SignUpRequest;
+import com.r2s.core.dto.response.SignInResponse;
 import com.r2s.auth.service.UserService;
-import com.r2s.auth.util.JwtUtils;
+import com.r2s.core.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;

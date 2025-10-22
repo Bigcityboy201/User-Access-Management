@@ -1,7 +1,7 @@
-package com.r2s.auth.security;
+package com.r2s.core.security;
 
-import com.r2s.auth.entity.Role;
-import com.r2s.auth.entity.User;
+import com.r2s.core.entity.Role;
+import com.r2s.core.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -21,13 +21,13 @@ public class CustomUserDetails implements UserDetails {
     private static final long serialVersionUID = 1L;
     private final String username;
     private final String password;
-    private final Set<GrantedAuthority>authorities;//ví dụ:role_ADMIN,....
-    private final Set<Role>role;//role ở dứi db bình thường
+    private final Set<GrantedAuthority>authorities;//vi du:role_ADMIN,....
+    private final Set<Role>role;//role o duoi db binh thuong
 
     public CustomUserDetails(final User user){
         this.username=user.getUsername();
         this.password=user.getPassword();
-        this.authorities=user.getRoles().stream().map(role->new SimpleGrantedAuthority(role.getRoleName())).collect(Collectors.toSet());
+        this.authorities=user.getRoles().stream().map(role->new SimpleGrantedAuthority("ROLE_" + role.getRoleName())).collect(Collectors.toSet());
         this.role=user.getRoles().stream().collect(Collectors.toSet());
     }
 

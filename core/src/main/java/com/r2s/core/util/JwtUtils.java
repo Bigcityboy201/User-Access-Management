@@ -1,7 +1,7 @@
-package com.r2s.auth.util;
+package com.r2s.core.util;
 
-import com.r2s.auth.entity.Role;
-import com.r2s.auth.security.CustomUserDetails;
+import com.r2s.core.entity.Role;
+import com.r2s.core.security.CustomUserDetails;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -21,15 +21,15 @@ public class JwtUtils {
     @Value("${jwt.secret}")
     private String jwtSecret;
 
-    @Value("${jwt.duration}") // kĩ thuật đọc dữ liệu từ file propeties or yml.
-    private long jwtDuration;// thời gian tồn tại của token
+    @Value("${jwt.duration}") // ky thuat doc du lieu tu file properties or yml.
+    private long jwtDuration;// thoi gian ton tai cua token
 
     //tạo token
     public String generateToken(final CustomUserDetails user){
         Map<String,Object>claims=new HashMap<>();
         claims.put("authorities",user.getAuthorities().stream().map(ath-> ath.getAuthority()).toList());
         claims.put("role",user.getRole().stream().map(Role::getRoleName).toList());
-        var expirationMillis = new Date(System.currentTimeMillis() + 1000 * jwtDuration);
+        Date expirationMillis = new Date(System.currentTimeMillis() + 1000 * jwtDuration);
 
         return Jwts.builder().setClaims(claims).setSubject(user.getUsername()).setIssuedAt(new Date()).setExpiration(expirationMillis).signWith(this.getSignKey()).compact();
     }
@@ -40,8 +40,8 @@ public class JwtUtils {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    //lấy thông tin userName
-    //sau khi giải mã token thì lấy toàn bộ thông tin trong payload và ch lấy ra duy nhất useName
+    //lay thong tin userName
+    //sau khi giai ma token thi lay toan bo thong tin trong payload va chi lay ra duy nhat userName
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
     }
@@ -49,17 +49,17 @@ public class JwtUtils {
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
-    //lấy thông tin token nhưng chỉ lấy những phần cụ thể trong payload
+    //lay thong tin token nhung chi lay nhung phan cu the trong payload
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
-    //lấy tất cả thông tin trong token
+    //lay tat ca thong tin trong token
     private Claims extractAllClaims(String token) {
         return Jwts.parser().setSigningKey(this.getSignKey()).build().parseClaimsJws(token).getBody();
     }
-    //kiểm tra thời gian hết hạn(so sánh thoi gian hiện tại và thoi gian hết hạn)
+    //kiem tra thoi gian het han(so sanh thoi gian hien tai va thoi gian het han)
     public boolean isTokenExpired(String token) {
         return extractExpiration(token).before(new Date());
     }

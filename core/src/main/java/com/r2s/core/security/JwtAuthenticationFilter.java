@@ -1,6 +1,6 @@
-package com.r2s.auth.security;
+package com.r2s.core.security;
 
-import com.r2s.auth.util.JwtUtils;
+import com.r2s.core.util.JwtUtils;
 import io.jsonwebtoken.lang.Strings;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -60,3 +60,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return Strings.EMPTY;
     }
 }
+

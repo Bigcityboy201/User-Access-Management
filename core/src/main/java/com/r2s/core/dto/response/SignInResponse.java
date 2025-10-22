@@ -1,4 +1,4 @@
-package com.r2s.auth.dto.response;
+package com.r2s.core.dto.response;
 
 import lombok.*;
 
@@ -13,3 +13,5 @@ public class SignInResponse {
     private String token;
     private Date expiredDate;
 }
+
+

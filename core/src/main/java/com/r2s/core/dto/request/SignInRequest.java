@@ -1,4 +1,4 @@
-package com.r2s.auth.dto.request;
+package com.r2s.core.dto.request;
 
 import lombok.*;
 
@@ -11,3 +11,5 @@ public class SignInRequest {
     private String username;
     private String password;
 }
+
+
