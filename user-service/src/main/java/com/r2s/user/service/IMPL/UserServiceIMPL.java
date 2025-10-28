@@ -35,6 +35,8 @@ public class UserServiceIMPL implements UserService {
 		User user = this.userRepository.findByUsername(username)
 				.orElseThrow(() -> new RuntimeException("User Not Found"));
 		// Update logic will be added when needed
+		user.setFullname(req.getFullName());
+		user.setEmail(req.getEmail());
 		return UserResponse.fromEntity(userRepository.save(user));
 	}
 
