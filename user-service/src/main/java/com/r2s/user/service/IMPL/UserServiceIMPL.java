@@ -34,9 +34,26 @@ public class UserServiceIMPL implements UserService {
 	public UserResponse updateUser(String username, UpdateUserRequest req) {
 		User user = this.userRepository.findByUsername(username)
 				.orElseThrow(() -> new RuntimeException("User Not Found"));
-		// Update logic will be added when needed
-		user.setFullname(req.getFullName());
-		user.setEmail(req.getEmail());
+		
+		// Update fullname if provided
+		if (req.getFullName() != null && !req.getFullName().trim().isEmpty()) {
+			user.setFullname(req.getFullName());
+		}
+		
+		// Update email if provided and different from current email
+		if (req.getEmail() != null && !req.getEmail().trim().isEmpty()) {
+			// Check if email is different from current email
+			if (!req.getEmail().equals(user.getEmail())) {
+				// Check if email already exists for another user
+				this.userRepository.findByEmail(req.getEmail()).ifPresent(existingUser -> {
+					if (!existingUser.getUsername().equals(username)) {
+						throw new RuntimeException("Email already exists: " + req.getEmail());
+					}
+				});
+				user.setEmail(req.getEmail());
+			}
+		}
+		
 		return UserResponse.fromEntity(userRepository.save(user));
 	}
 

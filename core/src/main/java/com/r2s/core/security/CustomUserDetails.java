@@ -27,8 +27,15 @@ public class CustomUserDetails implements UserDetails {
     public CustomUserDetails(final User user){
         this.username=user.getUsername();
         this.password=user.getPassword();
-        this.authorities=user.getRoles().stream().map(role->new SimpleGrantedAuthority("ROLE_" + role.getRoleName())).collect(Collectors.toSet());
-        this.role=user.getRoles().stream().collect(Collectors.toSet());
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            this.authorities=user.getRoles().stream()
+                    .map(role->new SimpleGrantedAuthority("ROLE_" + role.getRoleName().toUpperCase()))
+                    .collect(Collectors.toSet());
+            this.role=user.getRoles().stream().collect(Collectors.toSet());
+        } else {
+            this.authorities = Set.of();
+            this.role = Set.of();
+        }
     }
 
     @Override

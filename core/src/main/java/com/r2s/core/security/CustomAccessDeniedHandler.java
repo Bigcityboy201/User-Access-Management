@@ -1,4 +1,4 @@
-package com.r2s.auth.security;
+package com.r2s.core.security;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +15,8 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException accessDeniedException) throws IOException, ServletException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-        response.getWriter().write("Access Denied. You do not have permission to access this resource");
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"error\":\"Access Denied\",\"message\":\"You do not have permission to access this resource\"}");
     }
 }
+

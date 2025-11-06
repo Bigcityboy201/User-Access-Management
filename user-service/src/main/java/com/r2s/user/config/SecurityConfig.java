@@ -12,6 +12,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.r2s.core.security.CustomAccessDeniedHandler;
+import com.r2s.core.security.CustomAuthenticationEntryPoint;
 import com.r2s.core.security.CustomUserDetailsService;
 import com.r2s.core.security.JwtAuthenticationFilter;
 
@@ -23,10 +25,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-	private static final String[] WHITE_LIST = { "/users/me" };
+	private static final String[] WHITE_LIST = { };
 
 	private final JwtAuthenticationFilter jwtRequestFilter;
 	private final CustomUserDetailsService userDetailsService;
+	private final CustomAccessDeniedHandler accessDeniedHandler;
+	private final CustomAuthenticationEntryPoint authenticationEntryPoint;
 
 	@Bean
 	PasswordEncoder passwordEncoder() {
@@ -37,10 +41,16 @@ public class SecurityConfig {
 	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http.csrf(AbstractHttpConfigurer::disable);
 
-		http.authorizeHttpRequests(auths -> auths.requestMatchers(WHITE_LIST).permitAll().requestMatchers("/users")
-				.hasRole("ADMIN").requestMatchers("/users/**").hasAnyRole("ADMIN", "USER").anyRequest().authenticated())
+		http.authorizeHttpRequests(auths -> auths
+				.requestMatchers(WHITE_LIST).permitAll()
+				.requestMatchers("/users").hasRole("ADMIN")
+				.requestMatchers("/users/**").hasAnyRole("ADMIN", "USER")
+				.anyRequest().authenticated())
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.addFilterBefore(this.jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+				.addFilterBefore(this.jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
+				.exceptionHandling(handler -> handler
+						.accessDeniedHandler(this.accessDeniedHandler)
+						.authenticationEntryPoint(this.authenticationEntryPoint));
 
 		return http.build();
 	}

@@ -1,4 +1,4 @@
-package com.r2s.auth.security;
+package com.r2s.core.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -14,6 +14,8 @@ public class CustomAuthenticationEntryPoint implements AuthenticationEntryPoint 
     public void commence(HttpServletRequest request, HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.getWriter().write("Authentication Required. Please login to access this resource.");
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Authentication required. Please login to access this resource.\"}");
     }
 }
+

@@ -1,4 +1,7 @@
 # Spring Boot application configuration for the Docker container environment.
+server:
+  port: 8082
+
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL}
@@ -11,3 +14,21 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: user-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring:
+          json:
+            type:
+              mapping: CreateUserProfileDTO:com.r2s.core.dto.CreateUserProfileDTO
+            trusted:
+              packages: "*"
+
+# JWT Configuration - Must match auth-service to validate tokens
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+  duration: 86400

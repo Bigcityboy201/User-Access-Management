@@ -17,6 +17,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.r2s.core.security.CustomAccessDeniedHandler;
+import com.r2s.core.security.CustomAuthenticationEntryPoint;
 import com.r2s.core.security.CustomUserDetailsService;
 import com.r2s.core.security.JwtAuthenticationFilter;
 

@@ -1,4 +1,23 @@
 services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: wurstmeister/kafka
+    container_name: kafka
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_CREATE_TOPICS: "user.registered:1:1"
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+
   postgres-db:
     image: postgres:15
     container_name: postgres-db
@@ -10,6 +29,7 @@ services:
       - "55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   auth-service:
     build:
@@ -21,10 +41,12 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/auth-service
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: quangtruong1
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "8081:8081"
     depends_on:
       - postgres-db
+      - kafka
 
   user-service:
     build:
@@ -33,13 +55,15 @@ services:
     container_name: user-service
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/user-service
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/auth-service
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: quangtruong1
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     ports:
       - "8082:8082"
     depends_on:
       - postgres-db
+      - kafka
 
 volumes:
   postgres_data:
