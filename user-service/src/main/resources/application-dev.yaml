@@ -1,7 +1,7 @@
 # Spring Boot application configuration for the development environment
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/user-service
+    url: jdbc:postgresql://localhost:5432/qlnguoidung
     username: postgres
     password: quangtruong1
   jpa:

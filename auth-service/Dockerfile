@@ -8,4 +8,3 @@ EXPOSE 8081
 
 ENTRYPOINT ["java", "-jar", "auth-service.jar"]
 
-
