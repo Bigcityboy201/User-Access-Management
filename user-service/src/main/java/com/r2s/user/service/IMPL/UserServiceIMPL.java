@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.r2s.core.entity.User;
+import com.r2s.core.exception.UserNotFoundException;
 import com.r2s.core.repository.UserRepository;
 import com.r2s.user.dto.UserResponse;
 import com.r2s.user.dto.UserResponse.UpdateUserRequest;
@@ -25,7 +26,7 @@ public class UserServiceIMPL implements UserService {
 	@Override
 	public UserResponse getUserByUsername(String username) {
 		User user = this.userRepository.findByUsername(username)
-				.orElseThrow(() -> new RuntimeException("User not found"));
+				.orElseThrow(() -> new UserNotFoundException("User not found"));
 
 		return UserResponse.fromEntity(user);
 	}
@@ -33,13 +34,13 @@ public class UserServiceIMPL implements UserService {
 	@Override
 	public UserResponse updateUser(String username, UpdateUserRequest req) {
 		User user = this.userRepository.findByUsername(username)
-				.orElseThrow(() -> new RuntimeException("User Not Found"));
-		
+				.orElseThrow(() -> new UserNotFoundException("User Not Found"));
+
 		// Update fullname if provided
 		if (req.getFullName() != null && !req.getFullName().trim().isEmpty()) {
 			user.setFullname(req.getFullName());
 		}
-		
+
 		// Update email if provided and different from current email
 		if (req.getEmail() != null && !req.getEmail().trim().isEmpty()) {
 			// Check if email is different from current email
@@ -47,20 +48,20 @@ public class UserServiceIMPL implements UserService {
 				// Check if email already exists for another user
 				this.userRepository.findByEmail(req.getEmail()).ifPresent(existingUser -> {
 					if (!existingUser.getUsername().equals(username)) {
-						throw new RuntimeException("Email already exists: " + req.getEmail());
+						throw new UserNotFoundException("Email already exists: " + req.getEmail());
 					}
 				});
 				user.setEmail(req.getEmail());
 			}
 		}
-		
+
 		return UserResponse.fromEntity(userRepository.save(user));
 	}
 
 	@Override
 	public void deleteUser(String username) {
 		User user = this.userRepository.findByUsername(username)
-				.orElseThrow(() -> new RuntimeException("User Not Found"));
+				.orElseThrow(() -> new UserNotFoundException("User Not Found"));
 		userRepository.delete(user);
 	}
 }
