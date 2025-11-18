@@ -14,8 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
@@ -27,6 +29,7 @@ import com.r2s.core.dto.response.SignInResponse;
 import com.r2s.core.util.JwtUtils;
 
 @SpringBootTest
+@ComponentScan(basePackages = { "com.r2s.auth", "com.r2s.core.handler" })
 @AutoConfigureMockMvc
 class AuthControllerTest {
 
@@ -61,7 +64,9 @@ class AuthControllerTest {
 				.content(objectMapper.writeValueAsString(request)));
 
 		// Verify
-		response.andExpect(status().isOk()).andExpect(jsonPath("$").value("User registered successfully"));
+		// response.andExpect(status().isOk()).andExpect(jsonPath("$").value("User
+		// registered successfully"));
+		response.andExpect(status().isOk()).andExpect(jsonPath("$.data").value("User registered successfully"));
 
 		verify(userService).signUp(any(SignUpRequest.class));
 	}
@@ -107,30 +112,53 @@ class AuthControllerTest {
 				.content(objectMapper.writeValueAsString(request)));
 
 		// Verify
-		response.andExpect(status().isOk()).andExpect(jsonPath("$.token").value("test-jwt-token"))
-				.andExpect(jsonPath("$.expiredDate").exists());
+		response.andExpect(status().isOk()).andExpect(jsonPath("$.data.token").value("test-jwt-token"))
+				.andExpect(jsonPath("$.data.expiredDate").exists());
 
 		verify(userService).signIn(any(SignInRequest.class));
 	}
 
 	// === POST /auth/login - invalid credentials ===
+//	@Test
+//	void login_shouldReturnErrorIfInvalidCredentials() throws Exception {
+//		// Setup
+//		SignInRequest request = new SignInRequest();
+//		request.setUsername("john");
+//		request.setPassword("wrongPassword");
+//
+//		when(userService.signIn(any(SignInRequest.class)))
+//				.thenThrow(new org.springframework.security.authentication.BadCredentialsException("Bad credentials"));
+//
+//		// Execute
+//		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+//				.content(objectMapper.writeValueAsString(request)));
+//
+//		// Verify
+//		// response.andExpect(status().isUnauthorized());
+//		response.andExpect(status().isUnauthorized());
+//
+//		verify(userService).signIn(any(SignInRequest.class));
+//	}
 	@Test
-	void login_shouldReturnErrorIfInvalidCredentials() throws Exception {
+	void login_shouldReturnUnauthorizedIfInvalidCredentials() throws Exception {
 		// Setup
 		SignInRequest request = new SignInRequest();
 		request.setUsername("john");
 		request.setPassword("wrongPassword");
 
-		when(userService.signIn(any(SignInRequest.class)))
-				.thenThrow(new org.springframework.security.authentication.BadCredentialsException("Bad credentials"));
+		// Mock userService.signIn() ném BadCredentialsException
+		when(userService.signIn(any(SignInRequest.class))).thenThrow(new BadCredentialsException("Bad credentials"));
 
 		// Execute
 		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)));
 
 		// Verify
-		response.andExpect(status().isUnauthorized());
+		response.andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+				.andExpect(jsonPath("$.message").value("Invalid username or password"))
+				.andExpect(jsonPath("$.domain").value("auth"));
 
+		// Verify userService.signIn() được gọi
 		verify(userService).signIn(any(SignInRequest.class));
 	}
 }
