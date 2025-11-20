@@ -5,6 +5,10 @@ import java.util.List;
 import com.r2s.core.entity.Role;
 import com.r2s.core.entity.User;
 
+import jakarta.persistence.Column;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,14 +40,16 @@ public class UserResponse {
 	@NoArgsConstructor
 	@AllArgsConstructor
 	public static class UpdateUserRequest {
-		private String email;
-		private String fullName;
 
-		public static UpdateUserRequest fromEntity(final User user) {
-			UpdateUserRequest res = new UpdateUserRequest();
-			res.setEmail(user.getEmail());
-			res.setFullName(user.getFullname());
-			return res;
-		}
+		@NotBlank(message = "Email không được bỏ trống")
+		@Email(message = "Email không hợp lệ")
+		@Column(nullable = false, unique = true)
+		private String email;
+
+		@NotBlank(message = "Họ tên không được bỏ trống")
+		@Size(min = 2, max = 50, message = "Họ tên phải từ 2 đến 50 ký tự")
+		@Column(nullable = false)
+		private String fullName;
 	}
+
 }

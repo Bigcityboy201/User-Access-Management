@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
 	@ResponseStatus(value = HttpStatus.NOT_FOUND)
 	@ExceptionHandler({ UserNotFoundException.class })
 	public ErrorResponse handle(final UserNotFoundException ex) {
-		return ErrorResponse.of(ex.getErrorCode(), ex.getMessage(), ex.getDomain());
+		return ErrorResponse.of(ex.getErrorCode(), ex.getDomain(), ex.getMessage());
 	}
 
 	@ResponseStatus(value = HttpStatus.FORBIDDEN)

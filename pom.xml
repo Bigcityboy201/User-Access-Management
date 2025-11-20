@@ -13,6 +13,7 @@
         <module>core</module>
         <module>user-service</module>
         <module>auth-service</module>
+        <module>system-tests</module>
     </modules>
 
     <dependencyManagement>

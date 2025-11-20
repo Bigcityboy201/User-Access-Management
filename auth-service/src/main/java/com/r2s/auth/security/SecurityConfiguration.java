@@ -27,7 +27,7 @@ import com.r2s.core.security.JwtAuthenticationFilter;
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfiguration {
 
-	private static final String[] WHITE_LIST = { "/auth/**" };
+	private static final String[] WHITE_LIST = { "/auth/register", "/auth/login" };
 
 	private final JwtAuthenticationFilter jwtRequestFilter;
 	private final CustomUserDetailsService userDetailsService;

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,9 +25,11 @@ import com.r2s.core.security.CustomUserDetails;
 import com.r2s.core.util.JwtUtils;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class UserServiceIMPL implements UserService {
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -34,6 +37,7 @@ public class UserServiceIMPL implements UserService {
 	private final AuthenticationManager authenticationManager;
 	private final JwtUtils jwtUtils;
 	private final UserKafkaProducer producer;
+
 	@Value("${jwt.duration}")
 	private long jwtDuration;
 
@@ -52,7 +56,7 @@ public class UserServiceIMPL implements UserService {
 		String roleName = (request.getRole() != null && request.getRole().getRoleName() != null)
 				? request.getRole().getRoleName()
 				: SecurityRole.ROLE_USER;
-		this.roleRepository.findByRoleName(roleName).ifPresent(role -> {
+		roleRepository.findByRoleName(roleName).ifPresent(role -> {
 			user.setRoles(List.of(role));
 		});
 
@@ -60,11 +64,11 @@ public class UserServiceIMPL implements UserService {
 		try {
 			savedUser = this.userRepository.save(user);
 		} catch (Exception e) {
-			System.err.println("Error saving user: " + e.getMessage());
-			e.printStackTrace();
-			throw e;
+			// Log lỗi hệ thống nhưng KHÔNG nuốt lỗi → để GlobalExceptionHandler đẩy 500
+			log.error("Failed to save user {}: {}", request.getUsername(), e.getMessage(), e);
+			throw e; // bubble lên 500
 		}
-		// Extract role names from savedUser
+		// Kafka event
 		List<String> roleNames = savedUser.getRoles().stream().map(role -> role.getRoleName()).toList();
 
 		// Send event to Kafka for user-service
@@ -79,8 +83,15 @@ public class UserServiceIMPL implements UserService {
 	@Override
 	public SignInResponse signIn(SignInRequest request) {
 		// Authenticate user
-		Authentication authentication = authenticationManager
-				.authenticate(new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+		Authentication authentication;
+		try {
+			authentication = authenticationManager.authenticate(
+					new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+		} catch (BadCredentialsException ex) {
+			// Log nhẹ, không leak info
+			log.warn("Failed login attempt for username: {}", request.getUsername());
+			throw ex; // Cho GlobalExceptionHandler trả về 401
+		}
 
 		// Get user details
 		CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
@@ -89,8 +100,9 @@ public class UserServiceIMPL implements UserService {
 		String token = jwtUtils.generateToken(userDetails);
 
 		// Calculate expiration date using jwt.duration from config
-		java.util.Date expirationDate = new java.util.Date(System.currentTimeMillis() + 1000 * jwtDuration);
+		log.info("User {} logged in. Token hash: {}", request.getUsername(), token.hashCode());
 
+		java.util.Date expirationDate = new java.util.Date(System.currentTimeMillis() + (jwtDuration * 1000));
 		return SignInResponse.builder().token(token).expiredDate(expirationDate).build();
 	}
 }
