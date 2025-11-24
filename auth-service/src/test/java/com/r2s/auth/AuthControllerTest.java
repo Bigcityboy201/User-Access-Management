@@ -118,27 +118,6 @@ class AuthControllerTest {
 		verify(userService).signIn(any(SignInRequest.class));
 	}
 
-	// === POST /auth/login - invalid credentials ===
-//	@Test
-//	void login_shouldReturnErrorIfInvalidCredentials() throws Exception {
-//		// Setup
-//		SignInRequest request = new SignInRequest();
-//		request.setUsername("john");
-//		request.setPassword("wrongPassword");
-//
-//		when(userService.signIn(any(SignInRequest.class)))
-//				.thenThrow(new org.springframework.security.authentication.BadCredentialsException("Bad credentials"));
-//
-//		// Execute
-//		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-//				.content(objectMapper.writeValueAsString(request)));
-//
-//		// Verify
-//		// response.andExpect(status().isUnauthorized());
-//		response.andExpect(status().isUnauthorized());
-//
-//		verify(userService).signIn(any(SignInRequest.class));
-//	}
 	@Test
 	void login_shouldReturnUnauthorizedIfInvalidCredentials() throws Exception {
 		// Setup

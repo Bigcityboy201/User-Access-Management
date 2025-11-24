@@ -15,14 +15,10 @@ import com.r2s.core.repository.RoleRepository;
 import com.r2s.core.repository.UserRepository;
 import com.r2s.core.util.JwtUtils;
 
-/**
- * Test configuration for system tests
- * This allows system tests to use core module components
- */
 @SpringBootApplication
 @EntityScan(basePackageClasses = { User.class, Role.class })
 @EnableJpaRepositories(basePackageClasses = { UserRepository.class, RoleRepository.class })
-@ComponentScan(basePackages = {"com.r2s.system", "com.r2s.core"})
+@ComponentScan(basePackages = { "com.r2s.system", "com.r2s.core" })
 public class TestConfiguration {
 
 	@Value("${jwt.secret:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}")
@@ -54,4 +50,3 @@ public class TestConfiguration {
 		return jwtUtils;
 	}
 }
-

@@ -29,18 +29,6 @@ import com.r2s.core.util.JwtUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Cross-Service System Integration Test
- * 
- * This test validates the integration between auth-service and user-service
- * through shared core components (JWT, entities, repositories).
- * 
- * It tests:
- * 1. User registration flow (auth-service responsibility)
- * 2. JWT token generation and validation (core module)
- * 3. Token usage for authentication (user-service responsibility)
- * 4. Cross-service data consistency
- */
 @org.springframework.boot.test.context.SpringBootTest(classes = TestConfiguration.class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
@@ -51,9 +39,7 @@ class CrossServiceIntegrationTest {
 
 	@Container
 	static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine")
-			.withDatabaseName("system_test_db")
-			.withUsername("test_user")
-			.withPassword("test_password");
+			.withDatabaseName("system_test_db").withUsername("test_user").withPassword("test_password");
 
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
@@ -90,20 +76,12 @@ class CrossServiceIntegrationTest {
 	@DisplayName("Should generate and validate JWT token for cross-service authentication")
 	void testJwtTokenGenerationAndValidation() {
 		// Setup: Create role and user (simulating auth-service registration)
-		Role userRole = roleRepository.save(Role.builder()
-				.roleName("USER")
-				.description("Standard user")
-				.isActive(true)
-				.build());
+		Role userRole = roleRepository
+				.save(Role.builder().roleName("USER").description("Standard user").isActive(true).build());
 
-		User user = userRepository.save(User.builder()
-				.username("systemtest")
-				.password(passwordEncoder.encode("Test@123"))
-				.email("systemtest@example.com")
-				.fullname("System Test User")
-				.deleted(false)
-				.roles(new ArrayList<>(List.of(userRole)))
-				.build());
+		User user = userRepository.save(User.builder().username("systemtest")
+				.password(passwordEncoder.encode("Test@123")).email("systemtest@example.com")
+				.fullname("System Test User").deleted(false).roles(new ArrayList<>(List.of(userRole))).build());
 
 		// Test: Generate JWT token (auth-service responsibility)
 		CustomUserDetails userDetails = new CustomUserDetails(user);
@@ -128,20 +106,12 @@ class CrossServiceIntegrationTest {
 	@DisplayName("Should maintain user data consistency across services")
 	void testUserDataConsistency() {
 		// Setup: Create role and user
-		Role adminRole = roleRepository.save(Role.builder()
-				.roleName("ADMIN")
-				.description("Administrator")
-				.isActive(true)
-				.build());
+		Role adminRole = roleRepository
+				.save(Role.builder().roleName("ADMIN").description("Administrator").isActive(true).build());
 
-		User user = userRepository.save(User.builder()
-				.username("consistencytest")
-				.password(passwordEncoder.encode("Test@123"))
-				.email("consistency@example.com")
-				.fullname("Consistency Test")
-				.deleted(false)
-				.roles(new ArrayList<>(List.of(adminRole)))
-				.build());
+		User user = userRepository.save(User.builder().username("consistencytest")
+				.password(passwordEncoder.encode("Test@123")).email("consistency@example.com")
+				.fullname("Consistency Test").deleted(false).roles(new ArrayList<>(List.of(adminRole))).build());
 
 		// Test: Verify user can be retrieved (both services use same repository)
 		User retrievedUser = userRepository.findByUsername("consistencytest")
@@ -163,27 +133,16 @@ class CrossServiceIntegrationTest {
 	@DisplayName("Should handle role-based authentication for cross-service access")
 	void testRoleBasedAuthentication() {
 		// Setup: Create multiple roles
-		Role userRole = roleRepository.save(Role.builder()
-				.roleName("USER")
-				.description("Standard user")
-				.isActive(true)
-				.build());
+		Role userRole = roleRepository
+				.save(Role.builder().roleName("USER").description("Standard user").isActive(true).build());
 
-		Role adminRole = roleRepository.save(Role.builder()
-				.roleName("ADMIN")
-				.description("Administrator")
-				.isActive(true)
-				.build());
+		Role adminRole = roleRepository
+				.save(Role.builder().roleName("ADMIN").description("Administrator").isActive(true).build());
 
 		// Create user with multiple roles
-		User user = userRepository.save(User.builder()
-				.username("multirole")
-				.password(passwordEncoder.encode("Test@123"))
-				.email("multirole@example.com")
-				.fullname("Multi Role User")
-				.deleted(false)
-				.roles(new ArrayList<>(List.of(userRole, adminRole)))
-				.build());
+		User user = userRepository.save(User.builder().username("multirole")
+				.password(passwordEncoder.encode("Test@123")).email("multirole@example.com").fullname("Multi Role User")
+				.deleted(false).roles(new ArrayList<>(List.of(userRole, adminRole))).build());
 
 		// Test: Generate token with multiple roles
 		CustomUserDetails userDetails = new CustomUserDetails(user);
@@ -195,12 +154,9 @@ class CrossServiceIntegrationTest {
 
 		// Verify: User details contain all roles
 		assertThat(userDetails.getAuthorities()).hasSize(2);
-		assertThat(userDetails.getAuthorities().stream()
-				.map(auth -> auth.getAuthority())
-				.toList())
+		assertThat(userDetails.getAuthorities().stream().map(auth -> auth.getAuthority()).toList())
 				.containsExactlyInAnyOrder("ROLE_USER", "ROLE_ADMIN");
 
 		log.info("Role-based authentication verified for user with multiple roles");
 	}
 }
-

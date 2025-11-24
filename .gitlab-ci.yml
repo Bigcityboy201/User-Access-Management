@@ -1,0 +1,43 @@
+image: openjdk:17-jdk-slim
+
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  APP_NAME: myapp
+  JAR_PATH: target/demo-1.0.jar
+
+build-job:
+  stage: build
+  tags:
+    - local
+  script:
+    - chmod +x mvnw
+    - ./mvnw clean package -DskipTests
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 1 hour
+
+test-job:
+  stage: test
+  tags:
+    - local
+  script:
+    - ./mvnw test
+
+deploy-job:
+  stage: deploy
+  tags:
+    - local
+  only:
+    - main
+  script:
+    - docker stop $APP_NAME || true
+    - docker rm $APP_NAME || true
+    - docker run -d --name $APP_NAME -p 8080:8080 \
+        -v $CI_PROJECT_DIR/$JAR_PATH:/app.jar \
+        eclipse-temurin:17-jdk-alpine java -jar /app.jar
+
