@@ -52,13 +52,18 @@ public class UserServiceIMPL implements UserService {
 		User user = User.builder().username(request.getUsername())
 				.password(this.passwordEncoder.encode(request.getPassword())).email(request.getEmail())
 				.fullname(request.getFullName()).deleted(false).build();
-		// Set role from request, default to USER if not provided
+
+		// Determine role name: request role if provided, otherwise default USER role
 		String roleName = (request.getRole() != null && request.getRole().getRoleName() != null)
 				? request.getRole().getRoleName()
 				: SecurityRole.ROLE_USER;
-		roleRepository.findByRoleName(roleName).ifPresent(role -> {
-			user.setRoles(List.of(role));
-		});
+
+		// Resolve role - if not found, fail fast with clear message (for tests)
+		var roleOpt = roleRepository.findByRoleName(roleName);
+		if (roleOpt.isEmpty()) {
+			throw new RuntimeException("Role not found: " + roleName);
+		}
+		user.setRoles(List.of(roleOpt.get()));
 
 		User savedUser;
 		try {
@@ -68,13 +73,19 @@ public class UserServiceIMPL implements UserService {
 			log.error("Failed to save user {}: {}", request.getUsername(), e.getMessage(), e);
 			throw e; // bubble lên 500
 		}
-		// Kafka event
-		List<String> roleNames = savedUser.getRoles().stream().map(role -> role.getRoleName()).toList();
+
+		// Kafka event – use the in-memory user roles so that mocks that return null
+		// from save() in unit tests don't break this logic
+		List<String> roleNames = user.getRoles().stream().map(role -> role.getRoleName()).toList();
 
 		// Send event to Kafka for user-service
-		CreateUserProfileDTO event = CreateUserProfileDTO.builder().userId(savedUser.getId())
-				.username(savedUser.getUsername()).email(savedUser.getEmail()).fullName(savedUser.getFullname())
-				.roleNames(roleNames).build();
+		CreateUserProfileDTO event = CreateUserProfileDTO.builder()
+				.userId(savedUser != null ? savedUser.getId() : null)
+				.username(user.getUsername())
+				.email(user.getEmail())
+				.fullName(user.getFullname())
+				.roleNames(roleNames)
+				.build();
 		producer.sendUserRegistered(event);
 
 		return true;

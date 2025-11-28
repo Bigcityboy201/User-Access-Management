@@ -42,7 +42,7 @@ public class UserResponse {
 	public static class UpdateUserRequest {
 
 		@NotBlank(message = "Email không được bỏ trống")
-		@Email(message = "Email không hợp lệ")
+		@Email(message = "Invalid email format")
 		@Column(nullable = false, unique = true)
 		private String email;
 

@@ -55,7 +55,9 @@ public class UserServiceIMPL implements UserService {
 			}
 		}
 
-		return UserResponse.fromEntity(userRepository.save(user));
+		// Persist the updated user but rely on the in-memory instance for response
+		userRepository.save(user);
+		return UserResponse.fromEntity(user);
 	}
 
 	@Override

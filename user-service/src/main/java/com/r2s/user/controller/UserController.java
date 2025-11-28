@@ -42,7 +42,7 @@ public class UserController {
 	}
 
 	@PutMapping("/me")
-	public SuccessResponse<UserResponse> updateMyProfile(@RequestBody UpdateUserRequest request,
+	public SuccessResponse<UserResponse> updateMyProfile(@Valid @RequestBody UpdateUserRequest request,
 			Authentication authentication) {
 		String username = authentication.getName();
 		return SuccessResponse.of(userService.updateUser(username, request));

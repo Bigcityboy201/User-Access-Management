@@ -15,17 +15,20 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "users")
 @Getter
 @Setter
-@AllArgsConstructor
+@EqualsAndHashCode(of = { "id", "username" })
+@ToString(of = { "id", "username" })
+//@AllArgsConstructor
 @NoArgsConstructor
 @Builder
 public class User {
@@ -50,6 +53,17 @@ public class User {
 	@JsonManagedReference
 	@ManyToMany(fetch = FetchType.EAGER)
 	@JoinTable(name = "user_role", joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id"), inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))
-	@Builder.Default
 	private List<Role> roles = new ArrayList<>();
+
+	@Builder
+	public User(Integer id, String fullname, String email, String username, String password, boolean deleted,
+			List<Role> roles) {
+		this.id = id;
+		this.fullname = fullname;
+		this.email = email;
+		this.username = username;
+		this.password = password;
+		this.deleted = deleted;
+		this.roles = roles != null ? roles : new ArrayList<>();
+	}
 }

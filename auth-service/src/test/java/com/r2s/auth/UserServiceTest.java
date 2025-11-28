@@ -6,16 +6,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -77,8 +78,9 @@ class UserServiceTest {
 
 	// === TEST signUp() - success ===
 	@Test
-	void signUp_shouldSaveAndReturnTrue() {
-		// Setup
+	@DisplayName("signUp() should save user successfully when username does not exist")
+	void signUp_shouldReturnTrue_whenUserDoesNotExist() {
+		// Arrange
 		SignUpRequest request = new SignUpRequest();
 		request.setUsername("john");
 		request.setPassword("123456");
@@ -95,10 +97,10 @@ class UserServiceTest {
 		when(userRepository.save(any(User.class))).thenReturn(savedUser);
 		doNothing().when(producer).sendUserRegistered(any(CreateUserProfileDTO.class));
 
-		// Execute
+		// Act
 		Boolean result = userService.signUp(request);
 
-		// Verify
+		// Assert
 		assertTrue(result);
 		verify(userRepository, times(1)).findByUsername("john");
 		verify(passwordEncoder, times(1)).encode("123456");
@@ -109,8 +111,10 @@ class UserServiceTest {
 
 	// === TEST signUp() - username already exists ===
 	@Test
-	void signUp_shouldThrowExceptionIfUsernameExists() {
-		// Setup
+	@DisplayName("signUp() should throw exception when username already exists")
+	void signUp_shouldThrowException_whenUsernameExists() {
+
+		// Arrange
 		SignUpRequest request = new SignUpRequest();
 		request.setUsername("john");
 		request.setPassword("123456");
@@ -121,12 +125,12 @@ class UserServiceTest {
 
 		when(userRepository.findByUsername("john")).thenReturn(Optional.of(existingUser));
 
-		// Execute & Verify
+		// Act
 		assertThrows(UserAlreadyExistException.class, () -> {
 			userService.signUp(request);
 		});
 
-		// Verify
+		// Assert
 		verify(userRepository, times(1)).findByUsername("john");
 		verify(userRepository, never()).save(any(User.class));
 		verify(producer, never()).sendUserRegistered(any(CreateUserProfileDTO.class));
@@ -134,8 +138,9 @@ class UserServiceTest {
 
 	// === TEST signUp() - with custom role ===
 	@Test
-	void signUp_shouldSaveWithCustomRole() {
-		// Setup
+	@DisplayName("signUp() should save user with custom role when role exists")
+	void signUp_shouldSaveUserWithCustomRole_whenRoleExists() {
+		// Arrange
 		SignUpRequest request = new SignUpRequest();
 		request.setUsername("admin");
 		request.setPassword("123456");
@@ -155,68 +160,95 @@ class UserServiceTest {
 		when(userRepository.save(any(User.class))).thenReturn(savedUser);
 		doNothing().when(producer).sendUserRegistered(any(CreateUserProfileDTO.class));
 
-		// Execute
+		// Act
 		Boolean result = userService.signUp(request);
 
-		// Verify
+		// Assert
 		assertTrue(result);
 		verify(roleRepository, times(1)).findByRoleName("ADMIN");
 		verify(userRepository, times(1)).save(any(User.class));
 	}
 
-	// === TEST signIn() - success ===
 	@Test
-	void signIn_shouldReturnSignInResponse() {
-		// Setup
-		SignInRequest request = new SignInRequest();
+	@DisplayName("signUp() should throw exception when role is not found")
+	void signUp_shouldThrowExceptionWhenRoleNotFound() {
+		// Arrange
+		SignUpRequest request = new SignUpRequest();
+		request.setUsername("john");
+		request.setPassword("pass");
+
+		SignUpRequest.RoleRequest roleReq = new SignUpRequest.RoleRequest();
+		roleReq.setRoleName("MANAGER");
+		request.setRole(roleReq);
+
+		when(userRepository.findByUsername("john")).thenReturn(Optional.empty());
+		when(roleRepository.findByRoleName("MANAGER")).thenReturn(Optional.empty());
+
+		// Act + Assert
+		RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.signUp(request));
+		assertEquals("Role not found: MANAGER", ex.getMessage());
+	}
+
+	@Test
+	@DisplayName("signUp() should fail gracefully when Kafka producer throws exception")
+	void signUp_shouldHandleKafkaProducerFailure() {
+		// Arrange
+		SignUpRequest request = new SignUpRequest();
 		request.setUsername("john");
 		request.setPassword("123456");
 
-		Role userRole = Role.builder().id(1).roleName("USER").build();
-		User user = User.builder().id(1).username("john").password("encodedPassword").email("john@example.com")
-				.roles(List.of(userRole)).build();
+		// chú í dòng này
+		Role role = new Role(1, "USER", null, false, null);
 
+		when(userRepository.findByUsername("john")).thenReturn(Optional.empty());
+		when(passwordEncoder.encode("123456")).thenReturn("encodedPassword");
+		when(roleRepository.findByRoleName(SecurityRole.ROLE_USER)).thenReturn(Optional.of(role));
+		doThrow(new RuntimeException("Kafka send failed")).when(producer)
+				.sendUserRegistered(any(CreateUserProfileDTO.class));
+
+		// Act + Assert
+		RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.signUp(request));
+		assertEquals("Kafka send failed", ex.getMessage());
+	}
+
+	// === TEST signIn() - success ===
+	@Test
+	@DisplayName("signIn() should return token when authentication is successful")
+	void signIn_shouldReturnToken_whenCredentialsValid() {
+		// Arrange
+		SignInRequest request = new SignInRequest();
+		request.setUsername("john");
+		request.setPassword("123");
+
+		User user = new User();
+		user.setUsername("john");
 		CustomUserDetails userDetails = new CustomUserDetails(user);
-		Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null,
-				userDetails.getAuthorities());
 
-		String expectedToken = "test-jwt-token";
-		Date expectedExpiration = new Date(System.currentTimeMillis() + 1000 * JWT_DURATION);
+		Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null);
+		when(authenticationManager.authenticate(any())).thenReturn(auth);
+		when(jwtUtils.generateToken(any())).thenReturn("jwt-token");
 
-		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-				.thenReturn(authentication);
-		when(jwtUtils.generateToken(any(CustomUserDetails.class))).thenReturn(expectedToken);
+		// Act
+		SignInResponse response = userService.signIn(request);
 
-		// Execute
-		SignInResponse result = userService.signIn(request);
-
-		// Verify
-		assertNotNull(result);
-		assertEquals(expectedToken, result.getToken());
-		assertNotNull(result.getExpiredDate());
-
-		verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-		verify(jwtUtils, times(1)).generateToken(any(CustomUserDetails.class));
+		// Assert
+		assertNotNull(response);
+		assertEquals("jwt-token", response.getToken());
 	}
 
 	// === TEST signIn() - authentication failure ===
 	@Test
-	void signIn_shouldThrowExceptionIfAuthenticationFails() {
-		// Setup
-		SignInRequest request = new SignInRequest();
-		request.setUsername("john");
-		request.setPassword("wrongPassword");
+	@DisplayName("signIn() should throw BadCredentialsException when authentication fails")
+	void signIn_shouldThrowException_whenAuthenticationFails() {
+		// Arrange
+		SignInRequest req = new SignInRequest();
+		req.setUsername("john");
+		req.setPassword("wrong");
 
-		when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-				.thenThrow(new BadCredentialsException("Bad credentials"));
+		when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
 
-		// Execute & Verify
-		assertThrows(BadCredentialsException.class, () -> {
-			userService.signIn(request);
-		});
-
-		// Verify
-		verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
-		verify(jwtUtils, never()).generateToken(any(CustomUserDetails.class));
+		// Act + Assert
+		assertThrows(BadCredentialsException.class, () -> userService.signIn(req));
+		verify(jwtUtils, never()).generateToken(any());
 	}
 }

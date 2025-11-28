@@ -11,7 +11,7 @@ public class UserAlreadyExistException extends RuntimeException {
 
 	private static final long serialVersionUID = 1L;
 
-	private final ErrorCode errorCode = ErrorCode.ALREADY_EXIT;
+	private final ErrorCode errorCode = ErrorCode.CONFLICT;
 	private final String domain = "user";
 	private String message;
 

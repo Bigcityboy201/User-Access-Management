@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.Date;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -28,6 +29,9 @@ import com.r2s.core.dto.request.SignUpRequest;
 import com.r2s.core.dto.response.SignInResponse;
 import com.r2s.core.util.JwtUtils;
 
+//1.thêm displayName cho từng method
+//2.sửa tên method theo dạng:methodName_shouldReturnExpected_whenCondition
+//3.sửa cơ chế AAA pattern
 @SpringBootTest
 @ComponentScan(basePackages = { "com.r2s.auth", "com.r2s.core.handler" })
 @AutoConfigureMockMvc
@@ -49,8 +53,9 @@ class AuthControllerTest {
 
 	// === POST /auth/register ===
 	@Test
-	void register_shouldReturnSuccessMessage() throws Exception {
-		// Setup
+	@DisplayName("POST /auth/register - Should return success when user registers successfully")
+	void register_shouldReturnSuccess_whenUserRegisters() throws Exception {
+		// Arrange
 		SignUpRequest request = new SignUpRequest();
 		request.setUsername("john");
 		request.setPassword("123456");
@@ -59,13 +64,11 @@ class AuthControllerTest {
 
 		when(userService.signUp(any(SignUpRequest.class))).thenReturn(true);
 
-		// Execute
+		// Act
 		ResultActions response = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)));
 
-		// Verify
-		// response.andExpect(status().isOk()).andExpect(jsonPath("$").value("User
-		// registered successfully"));
+		// Assert
 		response.andExpect(status().isOk()).andExpect(jsonPath("$.data").value("User registered successfully"));
 
 		verify(userService).signUp(any(SignUpRequest.class));
@@ -73,8 +76,9 @@ class AuthControllerTest {
 
 	// === POST /auth/register - username already exists ===
 	@Test
-	void register_shouldReturnErrorIfUsernameExists() throws Exception {
-		// Setup
+	@DisplayName("POST /auth/register - Should return error when username already exists")
+	void register_shouldReturnError_whenUsernameExists() throws Exception {
+		// Arrange
 		SignUpRequest request = new SignUpRequest();
 		request.setUsername("john");
 		request.setPassword("123456");
@@ -84,11 +88,11 @@ class AuthControllerTest {
 		when(userService.signUp(any(SignUpRequest.class)))
 				.thenThrow(new RuntimeException("User with userName: john already existed!"));
 
-		// Execute
+		// Act
 		ResultActions response = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)));
 
-		// Verify
+		// Assert
 		response.andExpect(status().isInternalServerError());
 
 		verify(userService).signUp(any(SignUpRequest.class));
@@ -96,8 +100,9 @@ class AuthControllerTest {
 
 	// === POST /auth/login ===
 	@Test
-	void login_shouldReturnSignInResponse() throws Exception {
-		// Setup
+	@DisplayName("POST /auth/login - Should return token when login succeeds")
+	void login_shouldReturnToken_whenCredentialsValid() throws Exception {
+		// Arrange
 		SignInRequest request = new SignInRequest();
 		request.setUsername("john");
 		request.setPassword("123456");
@@ -107,11 +112,11 @@ class AuthControllerTest {
 
 		when(userService.signIn(any(SignInRequest.class))).thenReturn(signInResponse);
 
-		// Execute
+		// Act
 		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)));
 
-		// Verify
+		// Assert
 		response.andExpect(status().isOk()).andExpect(jsonPath("$.data.token").value("test-jwt-token"))
 				.andExpect(jsonPath("$.data.expiredDate").exists());
 
@@ -119,25 +124,23 @@ class AuthControllerTest {
 	}
 
 	@Test
-	void login_shouldReturnUnauthorizedIfInvalidCredentials() throws Exception {
-		// Setup
+	@DisplayName("POST /auth/login - Should return 401 when credentials are invalid")
+	void login_shouldReturnUnauthorized_whenCredentialsInvalid() throws Exception {
+		// Arrange
 		SignInRequest request = new SignInRequest();
 		request.setUsername("john");
 		request.setPassword("wrongPassword");
 
-		// Mock userService.signIn() ném BadCredentialsException
 		when(userService.signIn(any(SignInRequest.class))).thenThrow(new BadCredentialsException("Bad credentials"));
 
-		// Execute
+		// Act
 		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)));
 
-		// Verify
+		// Assert
 		response.andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
 				.andExpect(jsonPath("$.message").value("Invalid username or password"))
 				.andExpect(jsonPath("$.domain").value("auth"));
-
-		// Verify userService.signIn() được gọi
 		verify(userService).signIn(any(SignInRequest.class));
 	}
 }

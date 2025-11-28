@@ -15,6 +15,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -56,10 +57,8 @@ class AuthControllerIntegrationTest {
 		PostgreSQLContainer<?> container = null;
 		boolean started = false;
 		try {
-			container = new PostgreSQLContainer<>("postgres:16-alpine")
-					.withDatabaseName("auth_service_it")
-					.withUsername("it_user")
-					.withPassword("it_password");
+			container = new PostgreSQLContainer<>("postgres:16-alpine").withDatabaseName("auth_service_it")
+					.withUsername("it_user").withPassword("it_password");
 			container.start();
 			started = true;
 			log.info("Started PostgreSQL testcontainer at {}", container.getJdbcUrl());
@@ -114,36 +113,31 @@ class AuthControllerIntegrationTest {
 		userRepository.deleteAll();
 		roleRepository.deleteAll();
 
-		userRole = roleRepository.save(Role.builder()
-				.roleName("USER")
-				.description("Standard user")
-				.isActive(true)
-				.build());
+		userRole = roleRepository
+				.save(Role.builder().roleName("USER").description("Standard user").isActive(true).build());
 
-		adminRole = roleRepository.save(Role.builder()
-				.roleName("ADMIN")
-				.description("Administrator")
-				.isActive(true)
-				.build());
+		adminRole = roleRepository
+				.save(Role.builder().roleName("ADMIN").description("Administrator").isActive(true).build());
 
 		reset(userKafkaProducer);
 	}
 
+	// ======== REGISTER TESTS ========
+
 	@Test
+	@DisplayName("POST /auth/register - Should persist user and emit Kafka event")
 	void register_shouldPersistUserAndEmitKafkaEvent() throws Exception {
-		SignUpRequest request = SignUpRequest.builder()
-				.username("newuser")
-				.password("Secret#123")
-				.email("newuser@example.com")
-				.fullName("New User")
-				.role(RoleRequest.builder().roleName("ADMIN").build())
+		// ===== ARRANGE =====
+		SignUpRequest request = SignUpRequest.builder().username("newuser").password("Secret#123")
+				.email("newuser@example.com").fullName("New User").role(RoleRequest.builder().roleName("ADMIN").build())
 				.build();
 
-		mockMvc.perform(post("/auth/register")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data").value("User registered successfully"))
+		// ===== ACT =====
+		var result = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		result.andExpect(status().isOk()).andExpect(jsonPath("$.data").value("User registered successfully"))
 				.andExpect(jsonPath("$.code").value("OK"));
 
 		User persisted = userRepository.findByUsername("newuser").orElseThrow();
@@ -154,80 +148,108 @@ class AuthControllerIntegrationTest {
 	}
 
 	@Test
+	@DisplayName("POST /auth/register - Should fail for duplicate username")
 	void register_shouldFailForDuplicateUsername() throws Exception {
-		userRepository.save(User.builder()
-				.username("duplicate")
-				.password(passwordEncoder.encode("Secret#123"))
-				.email("dup@example.com")
-				.fullname("Dup User")
-				.roles(List.of(userRole))
-				.deleted(false)
-				.build());
+		// ===== ARRANGE =====
+		userRepository.save(User.builder().username("duplicate").password(passwordEncoder.encode("Secret#123"))
+				.email("dup@example.com").fullname("Dup User").roles(List.of(userRole)).deleted(false).build());
 
-		SignUpRequest request = SignUpRequest.builder()
-				.username("duplicate")
-				.password("AnotherPass1!")
-				.email("dup2@example.com")
-				.fullName("Dup User 2")
-				.build();
+		SignUpRequest request = SignUpRequest.builder().username("duplicate").password("AnotherPass1!")
+				.email("dup2@example.com").fullName("Dup User 2").build();
 
-		mockMvc.perform(post("/auth/register")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-				.andExpect(status().isInternalServerError())
-				.andExpect(jsonPath("$.code").value("INTERNAL_SERVER"))
+		// ===== ACT =====
+		var result = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		result.andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CONFLICT"))
 				.andExpect(jsonPath("$.message", containsString("User already exist")));
 
 		verifyNoInteractions(userKafkaProducer);
 	}
 
 	@Test
-	void login_shouldReturnJwtForValidCredentials() throws Exception {
-		userRepository.save(User.builder()
-				.username("loginuser")
-				.password(passwordEncoder.encode("Secret#123"))
-				.email("login@example.com")
-				.fullname("Login User")
-				.deleted(false)
-				.roles(List.of(userRole))
-				.build());
+	@DisplayName("POST /auth/register - Should return 400 when email is invalid")
+	void register_shouldReturnBadRequestWhenInvalidEmail() throws Exception {
+		// ===== ARRANGE =====
+		SignUpRequest request = SignUpRequest.builder().username("invalidemail").password("Secret#123")
+				.email("not-an-email").fullName("Invalid Email User").build();
 
-		SignInRequest request = SignInRequest.builder()
-				.username("loginuser")
-				.password("Secret#123")
-				.build();
+		// ===== ACT =====
+		var result = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
 
-		mockMvc.perform(post("/auth/login")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.token", notNullValue()))
-				.andExpect(jsonPath("$.data.expiredDate", notNullValue()))
-				.andExpect(jsonPath("$.code").value("OK"));
+		// ===== ASSERT =====
+		result.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.message", containsString("email")));
 	}
 
 	@Test
+	@DisplayName("POST /auth/register - Should return 400 when password is too short")
+	void register_shouldReturnBadRequestWhenPasswordTooShort() throws Exception {
+		// ===== ARRANGE =====
+		SignUpRequest request = SignUpRequest.builder().username("shortpass").password("123").email("short@example.com")
+				.fullName("Short Pass").build();
+
+		// ===== ACT =====
+		var result = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		result.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.message", containsString("password")));
+	}
+
+	// ======== LOGIN TESTS ========
+
+	@Test
+	@DisplayName("POST /auth/login - Should return JWT for valid credentials")
+	void login_shouldReturnJwtForValidCredentials() throws Exception {
+		// ===== ARRANGE =====
+		userRepository.save(User.builder().username("loginuser").password(passwordEncoder.encode("Secret#123"))
+				.email("login@example.com").fullname("Login User").deleted(false).roles(List.of(userRole)).build());
+
+		SignInRequest request = SignInRequest.builder().username("loginuser").password("Secret#123").build();
+
+		// ===== ACT =====
+		var result = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		result.andExpect(status().isOk()).andExpect(jsonPath("$.data.token", notNullValue()))
+				.andExpect(jsonPath("$.data.expiredDate", notNullValue())).andExpect(jsonPath("$.code").value("OK"));
+	}
+
+	@Test
+	@DisplayName("POST /auth/login - Should return 401 when password is invalid")
 	void login_shouldReturnUnauthorizedWhenPasswordInvalid() throws Exception {
-		userRepository.save(User.builder()
-				.username("loginuser")
-				.password(passwordEncoder.encode("Secret#123"))
-				.email("login@example.com")
-				.fullname("Login User")
-				.deleted(false)
-				.roles(List.of(userRole))
-				.build());
+		// ===== ARRANGE =====
+		userRepository.save(User.builder().username("loginuser").password(passwordEncoder.encode("Secret#123"))
+				.email("login@example.com").fullname("Login User").deleted(false).roles(List.of(userRole)).build());
 
-		SignInRequest request = SignInRequest.builder()
-				.username("loginuser")
-				.password("WrongPassword!")
-				.build();
+		SignInRequest request = SignInRequest.builder().username("loginuser").password("WrongPassword!").build();
 
-		mockMvc.perform(post("/auth/login")
-				.contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(request)))
-				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+		// ===== ACT =====
+		var result = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		result.andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+				.andExpect(jsonPath("$.message").value("Invalid username or password"));
+	}
+
+	@Test
+	@DisplayName("POST /auth/login - Should return 401 when user not found")
+	void login_shouldReturnUnauthorizedWhenUserNotFound() throws Exception {
+		// ===== ARRANGE =====
+		SignInRequest request = SignInRequest.builder().username("unknownUser").password("SomePassword123!").build();
+
+		// ===== ACT =====
+		var result = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		result.andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
 				.andExpect(jsonPath("$.message").value("Invalid username or password"));
 	}
 }
-
