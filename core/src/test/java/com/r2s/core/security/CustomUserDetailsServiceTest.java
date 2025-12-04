@@ -17,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import com.r2s.core.entity.Role;
 import com.r2s.core.entity.User;
@@ -60,7 +61,8 @@ class CustomUserDetailsServiceTest {
         when(userRepository.findByUsername("nonexistent")).thenReturn(Optional.empty());
 
         // ===== ACT & ASSERT =====
-        assertThrows(RuntimeException.class, () -> userDetailsService.loadUserByUsername("nonexistent"));
+        assertThrows(UsernameNotFoundException.class,
+                () -> userDetailsService.loadUserByUsername("nonexistent"));
         verify(userRepository).findByUsername("nonexistent");
     }
 
@@ -97,7 +99,8 @@ class CustomUserDetailsServiceTest {
         when(userRepository.findByUsername("deleteduser")).thenReturn(Optional.of(deletedUser));
 
         // ===== ACT & ASSERT =====
-        assertThrows(RuntimeException.class, () -> userDetailsService.loadUserByUsername("deleteduser"));
+        assertThrows(UsernameNotFoundException.class,
+                () -> userDetailsService.loadUserByUsername("deleteduser"));
         verify(userRepository).findByUsername("deleteduser");
     }
 
@@ -118,5 +121,17 @@ class CustomUserDetailsServiceTest {
         assertEquals("norolesuser", userDetails.getUsername());
         assertEquals(0, userDetails.getAuthorities().size());
         verify(userRepository).findByUsername("norolesuser");
+    }
+
+    @Test
+    @DisplayName("loadUserByUsername should throw exception when username is null")
+    void loadUserByUsername_shouldHandleNullUsername() {
+        // ===== ARRANGE =====
+        when(userRepository.findByUsername(null)).thenReturn(Optional.empty());
+
+        // ===== ACT & ASSERT =====
+        assertThrows(UsernameNotFoundException.class,
+                () -> userDetailsService.loadUserByUsername(null));
+        verify(userRepository).findByUsername(null);
     }
 }

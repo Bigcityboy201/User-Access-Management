@@ -1,6 +1,11 @@
 package com.r2s.core.dto.request;
 
-import lombok.*;
+import jakarta.validation.constraints.NotBlank;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Getter
 @Setter
@@ -8,30 +13,13 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 public class SignInRequest {
-    private String username;
-    private String password;
+
+	@NotBlank(message = "username must not be blank")
+	private String username;
+
+	@NotBlank(message = "password must not be blank")
+	private String password;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

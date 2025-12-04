@@ -166,6 +166,39 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    @DisplayName("handle IllegalArgumentException should return 400 Bad Request")
+    void handleIllegalArgumentException_shouldReturnBadRequest() {
+        // ===== ARRANGE =====
+        IllegalArgumentException exception = new IllegalArgumentException("Invalid argument");
+
+        // ===== ACT =====
+        ErrorResponse response = exceptionHandler.handleIllegalArgument(exception);
+
+        // ===== ASSERT =====
+        assertNotNull(response);
+        assertEquals(ErrorCode.BAD_REQUEST, response.getCode());
+        assertEquals("Invalid argument", response.getMessage());
+        assertEquals("system", response.getDomain());
+    }
+
+    @Test
+    @DisplayName("handle NullPointerException should return 500 Internal Server Error")
+    void handleNullPointerException_shouldReturnInternalServerError() {
+        // ===== ARRANGE =====
+        NullPointerException exception = new NullPointerException("Null pointer");
+
+        // ===== ACT =====
+        ResponseEntity<ErrorResponse> response = exceptionHandler.handle(exception);
+
+        // ===== ASSERT =====
+        assertNotNull(response);
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals(ErrorCode.INTERNAL_SERVER, response.getBody().getCode());
+        assertEquals("Null pointer", response.getBody().getMessage());
+        assertEquals("system", response.getBody().getDomain());
+    }
+
+    @Test
     @DisplayName("handle UserAlreadyExistException should return 409 Conflict")
     void handleUserAlreadyExistException_shouldReturnConflict() {
         // ===== ARRANGE =====

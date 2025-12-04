@@ -95,4 +95,10 @@ public class GlobalExceptionHandler {
 
 		return ErrorResponse.of(ErrorCode.BAD_REQUEST, "validation", "Validation failed for constraint violation", details);
 	}
+
+	@ResponseStatus(value = HttpStatus.BAD_REQUEST)
+	@ExceptionHandler({ IllegalArgumentException.class })
+	public ErrorResponse handleIllegalArgument(final IllegalArgumentException exception) {
+		return ErrorResponse.of(ErrorCode.BAD_REQUEST, "system", exception.getMessage());
+	}
 }

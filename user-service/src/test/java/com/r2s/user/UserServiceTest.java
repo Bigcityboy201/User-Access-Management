@@ -75,6 +75,20 @@ class UserServiceTest {
 		verify(userRepository, times(1)).findAll();
 	}
 
+	@Test
+	@DisplayName("getAllUsers_shouldReturnEmptyListWhenNoUsers - alias for explicit scenario name")
+	void getAllUsers_shouldReturnEmptyListWhenNoUsers() {
+		// ===== ARRANGE =====
+		when(userRepository.findAll()).thenReturn(List.of());
+
+		// ===== ACT =====
+		List<User> result = userService.getAllUsers();
+
+		// ===== ASSERT =====
+		assertEquals(0, result.size());
+		verify(userRepository, times(1)).findAll();
+	}
+
 	// ===== getUserByUsername =====
 	@Test
 	@DisplayName("getUserByUsername - Should return user response")
@@ -105,6 +119,17 @@ class UserServiceTest {
 		// ===== ACT & ASSERT =====
 		assertThrows(UserNotFoundException.class, () -> userService.getUserByUsername("missing"));
 		verify(userRepository, times(1)).findByUsername("missing");
+	}
+
+	@Test
+	@DisplayName("getUserByUsername - Should throw exception when user is deleted (treated as not found)")
+	void getUserByUsername_shouldThrowExceptionWhenUserDeleted() {
+		// ===== ARRANGE =====
+		when(userRepository.findByUsername("deletedUser")).thenReturn(Optional.empty());
+
+		// ===== ACT & ASSERT =====
+		assertThrows(UserNotFoundException.class, () -> userService.getUserByUsername("deletedUser"));
+		verify(userRepository, times(1)).findByUsername("deletedUser");
 	}
 
 	// ===== updateUser =====
@@ -185,6 +210,48 @@ class UserServiceTest {
 	}
 
 	@Test
+	@DisplayName("updateUser - Should only update provided fields (partial update)")
+	void updateUser_shouldOnlyUpdateProvidedFields() {
+		// ===== ARRANGE =====
+		Role userRole = Role.builder().id(1).roleName("USER").build();
+		User mockUser = User.builder().id(1).username("john").fullname("John Doe").email("john@example.com")
+				.roles(List.of(userRole)).build();
+
+		UpdateUserRequest update = new UpdateUserRequest();
+		update.setFullName("John Updated");
+		// email is left null so it should not be changed
+
+		when(userRepository.findByUsername("john")).thenReturn(Optional.of(mockUser));
+		when(userRepository.save(Mockito.any(User.class))).thenAnswer(i -> i.getArgument(0));
+
+		// ===== ACT =====
+		UserResponse result = userService.updateUser("john", update);
+
+		// ===== ASSERT =====
+		assertEquals("John Updated", result.getFullname());
+		assertEquals("john@example.com", result.getEmail());
+		verify(userRepository, times(1)).findByUsername("john");
+		verify(userRepository, never()).findByEmail(Mockito.any());
+		verify(userRepository, times(1)).save(mockUser);
+	}
+
+	@Test
+	@DisplayName("updateUser - Should throw exception when user is deleted (treated as not found)")
+	void updateUser_shouldThrowExceptionWhenUserDeleted() {
+		// ===== ARRANGE =====
+		when(userRepository.findByUsername("deletedUser")).thenReturn(Optional.empty());
+
+		UpdateUserRequest update = new UpdateUserRequest();
+		update.setFullName("New Name");
+
+		// ===== ACT & ASSERT =====
+		assertThrows(UserNotFoundException.class, () -> userService.updateUser("deletedUser", update));
+		verify(userRepository, times(1)).findByUsername("deletedUser");
+		verify(userRepository, never()).findByEmail(Mockito.any());
+		verify(userRepository, never()).save(Mockito.any());
+	}
+
+	@Test
 	@DisplayName("updateUser - Should throw exception if email exists for another user")
 	void updateUser_shouldThrowIfEmailExistsForAnotherUser_whenEmailTaken() {
 		// ===== ARRANGE =====
@@ -235,6 +302,18 @@ class UserServiceTest {
 		// ===== ACT & ASSERT =====
 		assertThrows(UserNotFoundException.class, () -> userService.deleteUser("missing"));
 		verify(userRepository, times(1)).findByUsername("missing");
+		verify(userRepository, never()).delete(Mockito.any());
+	}
+
+	@Test
+	@DisplayName("deleteUser - Should throw exception when user is deleted (treated as not found)")
+	void deleteUser_shouldThrowExceptionWhenUserDeleted() {
+		// ===== ARRANGE =====
+		when(userRepository.findByUsername("deletedUser")).thenReturn(Optional.empty());
+
+		// ===== ACT & ASSERT =====
+		assertThrows(UserNotFoundException.class, () -> userService.deleteUser("deletedUser"));
+		verify(userRepository, times(1)).findByUsername("deletedUser");
 		verify(userRepository, never()).delete(Mockito.any());
 	}
 

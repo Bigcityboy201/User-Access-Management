@@ -5,6 +5,7 @@ import com.r2s.core.security.CustomUserDetails;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,7 +62,12 @@ public class JwtUtils {
     }
     //kiem tra thoi gian het han(so sanh thoi gian hien tai va thoi gian het han)
     public boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+        try {
+            return extractExpiration(token).before(new Date());
+        } catch (ExpiredJwtException e) {
+            // Token đã hết hạn theo JJWT -> coi là expired
+            return true;
+        }
     }
     
     //validate token

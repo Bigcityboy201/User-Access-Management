@@ -30,6 +30,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.r2s.core.entity.Role;
 import com.r2s.core.entity.User;
+import com.r2s.core.exception.UserNotFoundException;
 import com.r2s.user.dto.UserResponse;
 import com.r2s.user.dto.UserResponse.UpdateUserRequest;
 import com.r2s.user.service.UserService;
@@ -37,7 +38,7 @@ import com.r2s.user.service.IMPL.UserServiceIMPL;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@ComponentScan(basePackages = "com.r2s.user", excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = UserServiceIMPL.class))
+@ComponentScan(basePackages = { "com.r2s.user", "com.r2s.core.handler" }, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = UserServiceIMPL.class))
 class UserControllerTest {
 
 	@Autowired
@@ -73,6 +74,30 @@ class UserControllerTest {
 		verify(userService).getAllUsers();
 	}
 
+	// === GET /users - unauthorized (no auth) ===
+	@Test
+	@DisplayName("GET /users - Should return 401 Unauthorized when no auth")
+	void getAllUsers_shouldReturnUnauthorizedWhenNoAuth() throws Exception {
+		// ===== ACT & ASSERT =====
+		mockMvc.perform(get("/users")).andExpect(status().isUnauthorized());
+	}
+
+	// === GET /users - empty list ===
+	@Test
+	@DisplayName("GET /users - Should return empty list when no users exist")
+	@WithMockUser(username = "admin", roles = { "ADMIN" })
+	void getAllUsers_shouldReturnEmptyListWhenNoUsers() throws Exception {
+		// ===== ARRANGE =====
+		when(userService.getAllUsers()).thenReturn(List.of());
+
+		// ===== ACT & ASSERT =====
+		mockMvc.perform(get("/users")).andExpect(status().isOk())
+				.andExpect(jsonPath("$.data", hasSize(0)))
+				.andExpect(jsonPath("$.code").value("OK"));
+
+		verify(userService).getAllUsers();
+	}
+
 	// === GET /users/me ===
 	@Test
 	@DisplayName("GET /users/me - Should return user profile for authenticated user")
@@ -100,9 +125,23 @@ class UserControllerTest {
 
 	@Test
 	@DisplayName("GET /users/me - Should return 401 Unauthorized when no auth")
-	void getMyProfile_shouldReturnUnauthorized_whenNoAuth() throws Exception {
+	void getMyProfile_shouldReturnUnauthorizedWhenNoAuth() throws Exception {
 		// ===== ACT & ASSERT =====
 		mockMvc.perform(get("/users/me")).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("GET /users/me - Should return 404 NotFound when user does not exist")
+	@WithMockUser(username = "ghost", roles = { "USER" })
+	void getMyProfile_shouldReturnNotFoundWhenUserNotExists() throws Exception {
+		// ===== ARRANGE =====
+		when(userService.getUserByUsername("ghost")).thenThrow(new UserNotFoundException("User not found"));
+
+		// ===== ACT & ASSERT =====
+		mockMvc.perform(get("/users/me")).andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("NOT_FOUND"))
+				.andExpect(jsonPath("$.domain").value("user"))
+				.andExpect(jsonPath("$.message").value("User not found"));
 	}
 
 	// === PUT /users/me ===
@@ -137,7 +176,7 @@ class UserControllerTest {
 	@Test
 	@DisplayName("PUT /users/me - Should return 400 BadRequest when email is invalid")
 	@WithMockUser(username = "john", roles = { "USER" })
-	void updateMyProfile_shouldReturnBadRequest_whenInvalidEmail() throws Exception {
+	void updateMyProfile_shouldReturnBadRequestWhenInvalidEmail() throws Exception {
 		// ===== ARRANGE =====
 		UpdateUserRequest updateRequest = new UpdateUserRequest();
 		updateRequest.setFullName("John Doe");
@@ -147,26 +186,62 @@ class UserControllerTest {
 		mockMvc.perform(put("/users/me").contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(updateRequest))).andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("BAD_REQUEST"))
-				.andExpect(jsonPath("$.message").value("Invalid email format"));
+				.andExpect(jsonPath("$.domain").value("validation"))
+				.andExpect(jsonPath("$.message").value("Invalid email format"))
+				.andExpect(jsonPath("$.details.email").value("Invalid email format"));
 	}
 
 	@Test
-	@DisplayName("PUT /users/me - Should return 500 InternalServerError when email already exists")
+	@DisplayName("PUT /users/me - Should return 404 NotFound when email already exists for another user")
 	@WithMockUser(username = "john", roles = { "USER" })
-	void updateMyProfile_shouldReturnBadRequest_whenEmailExists() throws Exception {
+	void updateMyProfile_shouldReturnBadRequestWhenEmailExists() throws Exception {
 		// ===== ARRANGE =====
 		UpdateUserRequest updateRequest = new UpdateUserRequest();
 		updateRequest.setFullName("John Doe");
 		updateRequest.setEmail("existing@example.com");
 
 		when(userService.updateUser(eq("john"), any(UpdateUserRequest.class)))
-				.thenThrow(new RuntimeException("Email already exists"));
+				.thenThrow(new UserNotFoundException("Email already exists: existing@example.com"));
 
 		// ===== ACT & ASSERT =====
 		mockMvc.perform(put("/users/me").contentType(MediaType.APPLICATION_JSON)
-				.content(objectMapper.writeValueAsString(updateRequest))).andExpect(status().isInternalServerError())
-				.andExpect(jsonPath("$.code").value("INTERNAL_SERVER"))
-				.andExpect(jsonPath("$.message").value("Email already exists"));
+				.content(objectMapper.writeValueAsString(updateRequest))).andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("NOT_FOUND"))
+				.andExpect(jsonPath("$.domain").value("user"))
+				.andExpect(jsonPath("$.message").value("Email already exists: existing@example.com"));
+	}
+
+	@Test
+	@DisplayName("PUT /users/me - Should return 401 Unauthorized when no auth")
+	void updateMyProfile_shouldReturnUnauthorizedWhenNoAuth() throws Exception {
+		// ===== ARRANGE =====
+		UpdateUserRequest updateRequest = new UpdateUserRequest();
+		updateRequest.setFullName("John Doe");
+		updateRequest.setEmail("john@example.com");
+
+		// ===== ACT & ASSERT =====
+		mockMvc.perform(put("/users/me").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(updateRequest))).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("PUT /users/me - Should return 404 NotFound when user does not exist")
+	@WithMockUser(username = "missingUser", roles = { "USER" })
+	void updateMyProfile_shouldReturnNotFoundWhenUserNotExists() throws Exception {
+		// ===== ARRANGE =====
+		UpdateUserRequest updateRequest = new UpdateUserRequest();
+		updateRequest.setFullName("John Doe");
+		updateRequest.setEmail("john@example.com");
+
+		when(userService.updateUser(eq("missingUser"), any(UpdateUserRequest.class)))
+				.thenThrow(new UserNotFoundException("User Not Found"));
+
+		// ===== ACT & ASSERT =====
+		mockMvc.perform(put("/users/me").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(updateRequest))).andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("NOT_FOUND"))
+				.andExpect(jsonPath("$.domain").value("user"))
+				.andExpect(jsonPath("$.message").value("User Not Found"));
 	}
 
 	// === DELETE /users/{username} === (ADMIN only)
@@ -185,6 +260,30 @@ class UserControllerTest {
 		verify(userService).deleteUser("john");
 	}
 
+	@Test
+	@DisplayName("DELETE /users/{username} - Should return 401 Unauthorized when no auth")
+	void deleteUser_shouldReturnUnauthorizedWhenNoAuth() throws Exception {
+		// ===== ACT & ASSERT =====
+		mockMvc.perform(delete("/users/john")).andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	@DisplayName("DELETE /users/{username} - Should return 404 NotFound when user does not exist")
+	@WithMockUser(username = "admin", roles = { "ADMIN" })
+	void deleteUser_shouldReturnNotFoundWhenUserNotExists() throws Exception {
+		// ===== ARRANGE =====
+		doNothing().when(userService).deleteUser("missing");
+		// Simulate service throwing not found
+		org.mockito.Mockito.doThrow(new UserNotFoundException("User Not Found")).when(userService)
+				.deleteUser("missing");
+
+		// ===== ACT & ASSERT =====
+		mockMvc.perform(delete("/users/missing")).andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("NOT_FOUND"))
+				.andExpect(jsonPath("$.domain").value("user"))
+				.andExpect(jsonPath("$.message").value("User Not Found"));
+	}
+
 	// === GET /users - unauthorized (no ADMIN role) ===
 	@Test
 	@DisplayName("GET /users - Should return 403 Forbidden for non-ADMIN")
@@ -198,7 +297,7 @@ class UserControllerTest {
 	@Test
 	@DisplayName("DELETE /users/{username} - Should return 403 Forbidden for non-ADMIN")
 	@WithMockUser(username = "user", roles = { "USER" })
-	void deleteUser_shouldReturnForbidden_whenNonAdmin() throws Exception {
+	void deleteUser_shouldReturnForbiddenWhenNonAdmin() throws Exception {
 		// ===== ACT & ASSERT =====
 		mockMvc.perform(delete("/users/john")).andExpect(status().isForbidden());
 	}

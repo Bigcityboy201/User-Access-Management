@@ -24,8 +24,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -187,6 +189,12 @@ class UserServiceTest {
 		// Act + Assert
 		RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.signUp(request));
 		assertEquals("Role not found: MANAGER", ex.getMessage());
+
+		// Verify interactions
+		verify(userRepository, times(1)).findByUsername("john");
+		verify(roleRepository, times(1)).findByRoleName("MANAGER");
+		verify(userRepository, never()).save(any(User.class));
+		verify(producer, never()).sendUserRegistered(any(CreateUserProfileDTO.class));
 	}
 
 	@Test
@@ -196,19 +204,89 @@ class UserServiceTest {
 		SignUpRequest request = new SignUpRequest();
 		request.setUsername("john");
 		request.setPassword("123456");
+		request.setEmail("john@example.com");
+		request.setFullName("John Doe");
 
-		// chú í dòng này
-		Role role = new Role(1, "USER", null, false, null);
+		Role role = Role.builder().id(1).roleName(SecurityRole.ROLE_USER).build();
+		User savedUser = User.builder().id(1).username("john").email("john@example.com").fullname("John Doe")
+				.password("encodedPassword").deleted(false).roles(List.of(role)).build();
 
 		when(userRepository.findByUsername("john")).thenReturn(Optional.empty());
 		when(passwordEncoder.encode("123456")).thenReturn("encodedPassword");
 		when(roleRepository.findByRoleName(SecurityRole.ROLE_USER)).thenReturn(Optional.of(role));
+		when(userRepository.save(any(User.class))).thenReturn(savedUser);
 		doThrow(new RuntimeException("Kafka send failed")).when(producer)
 				.sendUserRegistered(any(CreateUserProfileDTO.class));
 
 		// Act + Assert
 		RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.signUp(request));
 		assertEquals("Kafka send failed", ex.getMessage());
+
+		// Verify method calls
+		verify(userRepository, times(1)).findByUsername("john");
+		verify(passwordEncoder, times(1)).encode("123456");
+		verify(roleRepository, times(1)).findByRoleName(SecurityRole.ROLE_USER);
+		verify(userRepository, times(1)).save(any(User.class));
+		verify(producer, times(1)).sendUserRegistered(any(CreateUserProfileDTO.class));
+	}
+
+	@Test
+	@DisplayName("signUp() should handle database exception when saving user")
+	void signUp_shouldHandleDatabaseException() {
+		// Arrange
+		SignUpRequest request = new SignUpRequest();
+		request.setUsername("john");
+		request.setPassword("123456");
+		request.setEmail("john@example.com");
+		request.setFullName("John Doe");
+
+		Role role = Role.builder().id(1).roleName(SecurityRole.ROLE_USER).build();
+
+		when(userRepository.findByUsername("john")).thenReturn(Optional.empty());
+		when(passwordEncoder.encode("123456")).thenReturn("encodedPassword");
+		when(roleRepository.findByRoleName(SecurityRole.ROLE_USER)).thenReturn(Optional.of(role));
+		when(userRepository.save(any(User.class))).thenThrow(new RuntimeException("Database error"));
+
+		// Act + Assert
+		RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.signUp(request));
+		assertEquals("Database error", ex.getMessage());
+
+		// Verify interactions
+		verify(userRepository, times(1)).findByUsername("john");
+		verify(passwordEncoder, times(1)).encode("123456");
+		verify(roleRepository, times(1)).findByRoleName(SecurityRole.ROLE_USER);
+		verify(userRepository, times(1)).save(any(User.class));
+		verify(producer, never()).sendUserRegistered(any(CreateUserProfileDTO.class));
+	}
+
+	@Test
+	@DisplayName("signUp() should throw exception when email already exists (database constraint)")
+	void signUp_shouldThrowExceptionWhenEmailExists() {
+		// Arrange
+		SignUpRequest request = new SignUpRequest();
+		request.setUsername("john");
+		request.setPassword("123456");
+		request.setEmail("duplicate@example.com");
+		request.setFullName("John Doe");
+
+		Role role = Role.builder().id(1).roleName(SecurityRole.ROLE_USER).build();
+
+		when(userRepository.findByUsername("john")).thenReturn(Optional.empty());
+		when(passwordEncoder.encode("123456")).thenReturn("encodedPassword");
+		when(roleRepository.findByRoleName(SecurityRole.ROLE_USER)).thenReturn(Optional.of(role));
+		when(userRepository.save(any(User.class)))
+				.thenThrow(new RuntimeException("Email already exists: duplicate@example.com"));
+
+		// Act + Assert
+		RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.signUp(request));
+		assertEquals("Email already exists: duplicate@example.com", ex.getMessage());
+
+		// Verify interactions
+		verify(userRepository, times(1)).findByUsername("john");
+		verify(passwordEncoder, times(1)).encode("123456");
+		verify(roleRepository, times(1)).findByRoleName(SecurityRole.ROLE_USER);
+		verify(userRepository, times(1)).save(any(User.class));
+		verify(producer, never()).sendUserRegistered(any(CreateUserProfileDTO.class));
 	}
 
 	// === TEST signIn() - success ===
@@ -234,6 +312,8 @@ class UserServiceTest {
 		// Assert
 		assertNotNull(response);
 		assertEquals("jwt-token", response.getToken());
+		verify(authenticationManager, times(1)).authenticate(any());
+		verify(jwtUtils, times(1)).generateToken(any());
 	}
 
 	// === TEST signIn() - authentication failure ===
@@ -249,6 +329,64 @@ class UserServiceTest {
 
 		// Act + Assert
 		assertThrows(BadCredentialsException.class, () -> userService.signIn(req));
+		verify(authenticationManager, times(1)).authenticate(any());
 		verify(jwtUtils, never()).generateToken(any());
+	}
+
+	@Test
+	@DisplayName("signIn() should throw DisabledException when user is deleted/disabled")
+	void signIn_shouldThrowExceptionWhenUserDeleted() {
+		// Arrange
+		SignInRequest req = new SignInRequest();
+		req.setUsername("deletedUser");
+		req.setPassword("password");
+
+		when(authenticationManager.authenticate(any()))
+				.thenThrow(new DisabledException("User is disabled or deleted"));
+
+		// Act + Assert
+		assertThrows(DisabledException.class, () -> userService.signIn(req));
+		verify(authenticationManager, times(1)).authenticate(any());
+		verify(jwtUtils, never()).generateToken(any());
+	}
+
+	@Test
+	@DisplayName("signIn() should throw UsernameNotFoundException when user is not found")
+void signIn_shouldThrowExceptionWhenUserNotFound() {
+		// Arrange
+		SignInRequest req = new SignInRequest();
+		req.setUsername("unknown");
+		req.setPassword("password");
+
+		when(authenticationManager.authenticate(any()))
+				.thenThrow(new UsernameNotFoundException("User not found"));
+
+		// Act + Assert
+		assertThrows(UsernameNotFoundException.class, () -> userService.signIn(req));
+		verify(authenticationManager, times(1)).authenticate(any());
+		verify(jwtUtils, never()).generateToken(any());
+	}
+
+	@Test
+	@DisplayName("signIn() should handle token generation failure (e.g., expired token scenario)")
+	void signIn_shouldHandleExpiredToken() {
+		// Arrange
+		SignInRequest request = new SignInRequest();
+		request.setUsername("john");
+		request.setPassword("123");
+
+		User user = new User();
+		user.setUsername("john");
+		CustomUserDetails userDetails = new CustomUserDetails(user);
+
+		Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null);
+		when(authenticationManager.authenticate(any())).thenReturn(auth);
+		when(jwtUtils.generateToken(any())).thenThrow(new RuntimeException("Token generation failed"));
+
+		// Act + Assert
+		RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.signIn(request));
+		assertEquals("Token generation failed", ex.getMessage());
+		verify(authenticationManager, times(1)).authenticate(any());
+		verify(jwtUtils, times(1)).generateToken(any());
 	}
 }

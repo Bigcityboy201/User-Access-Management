@@ -190,4 +190,71 @@ class JwtUtilsTest {
         // ===== ASSERT =====
         assertFalse(valid);
     }
+
+    @Test
+    @DisplayName("extractExpiration should throw exception for invalid token")
+    void extractExpiration_shouldThrowExceptionForInvalidToken() {
+        // ===== ARRANGE =====
+        String invalidToken = "invalid.token.value";
+
+        // ===== ACT & ASSERT =====
+        assertThrows(Exception.class, () -> jwtUtils.extractExpiration(invalidToken));
+    }
+
+    @Test
+    @DisplayName("generateToken should throw exception for null userDetails")
+    void generateToken_shouldHandleNullUserDetails() {
+        // ===== ARRANGE =====
+        CustomUserDetails nullUserDetails = null;
+
+        // ===== ACT & ASSERT =====
+        assertThrows(Exception.class, () -> jwtUtils.generateToken(nullUserDetails));
+    }
+
+    @Test
+    @DisplayName("isTokenExpired should return true for expired token")
+    void isTokenExpired_shouldReturnTrueForExpiredToken() {
+        // ===== ARRANGE =====
+        JwtUtils shortLivedJwtUtils = new JwtUtils();
+        ReflectionTestUtils.setField(shortLivedJwtUtils, "jwtSecret", TEST_SECRET);
+        // duration âm để token hết hạn ngay lập tức
+        ReflectionTestUtils.setField(shortLivedJwtUtils, "jwtDuration", -3600L);
+
+        Role userRole = Role.builder().id(1).roleName("USER").build();
+        User user = User.builder().id(1).username("expiredUser").password("password")
+                .roles(List.of(userRole)).build();
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        String expiredToken = shortLivedJwtUtils.generateToken(userDetails);
+
+        // ===== ACT =====
+        boolean expired = jwtUtils.isTokenExpired(expiredToken);
+
+        // ===== ASSERT =====
+        assertTrue(expired);
+    }
+
+    @Test
+    @DisplayName("isTokenExpired should throw exception for null token")
+    void isTokenExpired_shouldThrowExceptionForNullToken() {
+        // ===== ACT & ASSERT =====
+        assertThrows(Exception.class, () -> jwtUtils.isTokenExpired(null));
+    }
+
+    @Test
+    @DisplayName("isTokenExpired should throw exception for empty token")
+    void isTokenExpired_shouldThrowExceptionForEmptyToken() {
+        // ===== ACT & ASSERT =====
+        assertThrows(Exception.class, () -> jwtUtils.isTokenExpired(""));
+    }
+
+    @Test
+    @DisplayName("isTokenExpired should throw exception for invalid token")
+    void isTokenExpired_shouldThrowExceptionForInvalidToken() {
+        // ===== ARRANGE =====
+        String invalidToken = "invalid.token.value";
+
+        // ===== ACT & ASSERT =====
+        assertThrows(Exception.class, () -> jwtUtils.isTokenExpired(invalidToken));
+    }
 }
+

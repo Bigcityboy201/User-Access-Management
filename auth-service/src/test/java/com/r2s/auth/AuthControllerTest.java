@@ -11,6 +11,7 @@ import java.util.Date;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,6 +25,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.r2s.auth.service.UserService;
+import com.r2s.core.exception.UserNotFoundException;
 import com.r2s.core.dto.request.SignInRequest;
 import com.r2s.core.dto.request.SignUpRequest;
 import com.r2s.core.dto.response.SignInResponse;
@@ -98,6 +100,100 @@ class AuthControllerTest {
 		verify(userService).signUp(any(SignUpRequest.class));
 	}
 
+	// === POST /auth/register - validation errors ===
+
+	@Test
+	@DisplayName("POST /auth/register - Should return 400 when email is invalid")
+	void register_shouldReturnBadRequestWhenEmailInvalid() throws Exception {
+		// ===== ARRANGE =====
+		SignUpRequest request = new SignUpRequest();
+		request.setUsername("john");
+		request.setPassword("123456");
+		request.setEmail("invalid-email");
+		request.setFullName("John Doe");
+
+		// ===== ACT =====
+		ResultActions response = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		response.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.domain").value("validation"))
+				.andExpect(jsonPath("$.message").value("email must be a valid email"))
+				.andExpect(jsonPath("$.details.email").value("email must be a valid email"));
+
+		Mockito.verifyNoInteractions(userService);
+	}
+
+	@Test
+	@DisplayName("POST /auth/register - Should return 400 when password is too short")
+	void register_shouldReturnBadRequestWhenPasswordTooShort() throws Exception {
+		// ===== ARRANGE =====
+		SignUpRequest request = new SignUpRequest();
+		request.setUsername("john");
+		request.setPassword("123"); // less than 6 characters
+		request.setEmail("john@example.com");
+		request.setFullName("John Doe");
+
+		// ===== ACT =====
+		ResultActions response = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		response.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.domain").value("validation"))
+				.andExpect(jsonPath("$.message").value("password must be at least 6 characters"))
+				.andExpect(jsonPath("$.details.password").value("password must be at least 6 characters"));
+
+		Mockito.verifyNoInteractions(userService);
+	}
+
+	@Test
+	@DisplayName("POST /auth/register - Should return 400 when username is empty")
+	void register_shouldReturnBadRequestWhenUsernameEmpty() throws Exception {
+		// ===== ARRANGE =====
+		SignUpRequest request = new SignUpRequest();
+		request.setUsername("   ");
+		request.setPassword("123456");
+		request.setEmail("john@example.com");
+		request.setFullName("John Doe");
+
+		// ===== ACT =====
+		ResultActions response = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		response.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.domain").value("validation"))
+				.andExpect(jsonPath("$.message").value("username must not be blank"))
+				.andExpect(jsonPath("$.details.username").value("username must not be blank"));
+
+		Mockito.verifyNoInteractions(userService);
+	}
+
+	@Test
+	@DisplayName("POST /auth/register - Should return 400 when fullName is empty")
+	void register_shouldReturnBadRequestWhenFullNameEmpty() throws Exception {
+		// ===== ARRANGE =====
+		SignUpRequest request = new SignUpRequest();
+		request.setUsername("john");
+		request.setPassword("123456");
+		request.setEmail("john@example.com");
+		request.setFullName("   ");
+
+		// ===== ACT =====
+		ResultActions response = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		response.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.domain").value("validation"))
+				.andExpect(jsonPath("$.message").value("fullName must not be blank"))
+				.andExpect(jsonPath("$.details.fullName").value("fullName must not be blank"));
+
+		Mockito.verifyNoInteractions(userService);
+	}
+
 	// === POST /auth/login ===
 	@Test
 	@DisplayName("POST /auth/login - Should return token when login succeeds")
@@ -141,6 +237,91 @@ class AuthControllerTest {
 		response.andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
 				.andExpect(jsonPath("$.message").value("Invalid username or password"))
 				.andExpect(jsonPath("$.domain").value("auth"));
+		verify(userService).signIn(any(SignInRequest.class));
+	}
+
+	@Test
+	@DisplayName("POST /auth/login - Should return 400 when username is empty")
+	void login_shouldReturnBadRequestWhenUsernameEmpty() throws Exception {
+		// ===== ARRANGE =====
+		SignInRequest request = new SignInRequest();
+		request.setUsername("   ");
+		request.setPassword("123456");
+
+		// ===== ACT =====
+		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		response.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.domain").value("validation"))
+				.andExpect(jsonPath("$.message").value("username must not be blank"))
+				.andExpect(jsonPath("$.details.username").value("username must not be blank"));
+
+		Mockito.verifyNoInteractions(userService);
+	}
+
+	@Test
+	@DisplayName("POST /auth/login - Should return 400 when password is empty")
+	void login_shouldReturnBadRequestWhenPasswordEmpty() throws Exception {
+		// ===== ARRANGE =====
+		SignInRequest request = new SignInRequest();
+		request.setUsername("john");
+		request.setPassword("   ");
+
+		// ===== ACT =====
+		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		response.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+				.andExpect(jsonPath("$.domain").value("validation"))
+				.andExpect(jsonPath("$.message").value("password must not be blank"))
+				.andExpect(jsonPath("$.details.password").value("password must not be blank"));
+
+		Mockito.verifyNoInteractions(userService);
+	}
+
+	@Test
+	@DisplayName("POST /auth/login - Should return 401 when user is not found")
+	void login_shouldReturnUnauthorizedWhenUserNotFound() throws Exception {
+		// ===== ARRANGE =====
+		SignInRequest request = new SignInRequest();
+		request.setUsername("missingUser");
+		request.setPassword("123456");
+
+		when(userService.signIn(any(SignInRequest.class)))
+				.thenThrow(new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found"));
+
+		// ===== ACT =====
+		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		response.andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+				.andExpect(jsonPath("$.message").value("Invalid username or password"))
+				.andExpect(jsonPath("$.domain").value("auth"));
+		verify(userService).signIn(any(SignInRequest.class));
+	}
+
+	@Test
+	@DisplayName("POST /auth/login - Should return 401 when user is deleted")
+	void login_shouldReturnUnauthorizedWhenUserDeleted() throws Exception {
+		// ===== ARRANGE =====
+		SignInRequest request = new SignInRequest();
+		request.setUsername("deletedUser");
+		request.setPassword("123456");
+
+		when(userService.signIn(any(SignInRequest.class))).thenThrow(new UserNotFoundException("User is deleted"));
+
+		// ===== ACT =====
+		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)));
+
+		// ===== ASSERT =====
+		response.andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("NOT_FOUND"))
+				.andExpect(jsonPath("$.message").value("User is deleted"))
+				.andExpect(jsonPath("$.domain").value("user"));
 		verify(userService).signIn(any(SignInRequest.class));
 	}
 }
