@@ -6,8 +6,10 @@ stages:
   - deploy
 
 variables:
-  APP_NAME: myapp
-  JAR_PATH: target/demo-1.0.jar
+  AUTH_SERVICE_NAME: auth-service
+  USER_SERVICE_NAME: user-service
+  AUTH_JAR_PATH: auth-service/target/auth-service-1.0-SNAPSHOT.jar
+  USER_JAR_PATH: user-service/target/user-service-1.0-SNAPSHOT.jar
 
 build-job:
   stage: build
@@ -18,26 +20,47 @@ build-job:
     - ./mvnw clean package -DskipTests
   artifacts:
     paths:
-      - target/*.jar
+      - auth-service/target/*.jar
+      - user-service/target/*.jar
+      - core/target/*.jar
     expire_in: 1 hour
 
 test-job:
   stage: test
   tags:
     - local
+  dependencies:
+    - build-job
   script:
     - ./mvnw test
 
-deploy-job:
+deploy-auth-service:
   stage: deploy
   tags:
     - local
-  only:
-    - main
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  dependencies:
+    - build-job
   script:
-    - docker stop $APP_NAME || true
-    - docker rm $APP_NAME || true
-    - docker run -d --name $APP_NAME -p 8080:8080 \
-        -v $CI_PROJECT_DIR/$JAR_PATH:/app.jar \
+    - docker stop $AUTH_SERVICE_NAME || true
+    - docker rm $AUTH_SERVICE_NAME || true
+    - docker run -d --name $AUTH_SERVICE_NAME -p 8080:8080 \
+        -v $CI_PROJECT_DIR/$AUTH_JAR_PATH:/app.jar \
+        eclipse-temurin:17-jdk-alpine java -jar /app.jar
+
+deploy-user-service:
+  stage: deploy
+  tags:
+    - local
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  dependencies:
+    - build-job
+  script:
+    - docker stop $USER_SERVICE_NAME || true
+    - docker rm $USER_SERVICE_NAME || true
+    - docker run -d --name $USER_SERVICE_NAME -p 8081:8081 \
+        -v $CI_PROJECT_DIR/$USER_JAR_PATH:/app.jar \
         eclipse-temurin:17-jdk-alpine java -jar /app.jar
 
