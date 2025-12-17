@@ -168,6 +168,7 @@ class AuthControllerIntegrationTest {
 		verifyNoInteractions(userKafkaProducer);
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/register - Should return 400 when email is invalid")
 	void register_shouldReturnBadRequestWhenInvalidEmail() throws Exception {
@@ -184,6 +185,7 @@ class AuthControllerIntegrationTest {
 				.andExpect(jsonPath("$.message", containsString("email")));
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/register - Should return 400 when password is too short")
 	void register_shouldReturnBadRequestWhenPasswordTooShort() throws Exception {
@@ -238,6 +240,7 @@ class AuthControllerIntegrationTest {
 				.andExpect(jsonPath("$.message").value("Invalid username or password"));
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/login - Should return 401 when user not found")
 	void login_shouldReturnUnauthorizedWhenUserNotFound() throws Exception {

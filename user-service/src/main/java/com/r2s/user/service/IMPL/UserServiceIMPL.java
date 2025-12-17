@@ -23,6 +23,7 @@ public class UserServiceIMPL implements UserService {
 		return this.userRepository.findAll();
 	}
 
+	// bổ sung check user is deleted...
 	@Override
 	public UserResponse getUserByUsername(String username) {
 		User user = this.userRepository.findByUsername(username)
@@ -31,6 +32,10 @@ public class UserServiceIMPL implements UserService {
 		return UserResponse.fromEntity(user);
 	}
 
+	// bổ sung lỗi email trùng
+	// check user is deleted
+	// validation input(if cho từng field)
+	// ...
 	@Override
 	public UserResponse updateUser(String username, UpdateUserRequest req) {
 		User user = this.userRepository.findByUsername(username)
@@ -60,6 +65,9 @@ public class UserServiceIMPL implements UserService {
 		return UserResponse.fromEntity(user);
 	}
 
+	// thêm check user isDeleted
+	// bắt lỗi DeleteException->để trả 400
+	// ...
 	@Override
 	public void deleteUser(String username) {
 		User user = this.userRepository.findByUsername(username)

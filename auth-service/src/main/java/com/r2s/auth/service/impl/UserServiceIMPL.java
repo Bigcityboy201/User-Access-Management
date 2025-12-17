@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Service
 @Slf4j
+
 public class UserServiceIMPL implements UserService {
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -41,6 +42,7 @@ public class UserServiceIMPL implements UserService {
 	@Value("${jwt.duration}")
 	private long jwtDuration;
 
+	// bổ sung check email->tồn tại
 	@Override
 	public Boolean signUp(SignUpRequest request) {
 		// check exists userName
@@ -79,18 +81,15 @@ public class UserServiceIMPL implements UserService {
 		List<String> roleNames = user.getRoles().stream().map(role -> role.getRoleName()).toList();
 
 		// Send event to Kafka for user-service
-		CreateUserProfileDTO event = CreateUserProfileDTO.builder()
-				.userId(savedUser != null ? savedUser.getId() : null)
-				.username(user.getUsername())
-				.email(user.getEmail())
-				.fullName(user.getFullname())
-				.roleNames(roleNames)
+		CreateUserProfileDTO event = CreateUserProfileDTO.builder().userId(savedUser != null ? savedUser.getId() : null)
+				.username(user.getUsername()).email(user.getEmail()).fullName(user.getFullname()).roleNames(roleNames)
 				.build();
 		producer.sendUserRegistered(event);
 
 		return true;
 	}
 
+	// bổ sung check userNotFoundException->(lỗi:userNotFound,user is deleted)
 	@Override
 	public SignInResponse signIn(SignInRequest request) {
 		// Authenticate user

@@ -39,7 +39,8 @@ class CrossServiceIntegrationTest {
 	@DynamicPropertySource
 	static void configureProperties(DynamicPropertyRegistry registry) {
 		// Use H2 database for tests (Docker not required)
-		registry.add("spring.datasource.url", () -> "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL");
+		registry.add("spring.datasource.url",
+				() -> "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL");
 		registry.add("spring.datasource.username", () -> "sa");
 		registry.add("spring.datasource.password", () -> "");
 		registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
@@ -151,12 +152,14 @@ class CrossServiceIntegrationTest {
 
 	// ===== New Test Cases =====
 
+	//
 	@Test
 	@DisplayName("Should throw exception when user not found")
 	void testUserNotFoundScenario() {
 		assertThat(userRepository.findByUsername("unknown")).isEmpty();
 	}
 
+	//
 	@Test
 	@DisplayName("Should handle concurrent user creation without conflict")
 	void testConcurrentUserCreation() throws ExecutionException, InterruptedException {
@@ -177,6 +180,7 @@ class CrossServiceIntegrationTest {
 		assertTrue(userRepository.existsById(user2.getId()));
 	}
 
+	//
 	@Test
 	@DisplayName("Should correctly handle JWT token expiration")
 	void testTokenExpirationHandling() throws InterruptedException {

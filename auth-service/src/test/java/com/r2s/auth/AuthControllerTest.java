@@ -25,10 +25,10 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.r2s.auth.service.UserService;
-import com.r2s.core.exception.UserNotFoundException;
 import com.r2s.core.dto.request.SignInRequest;
 import com.r2s.core.dto.request.SignUpRequest;
 import com.r2s.core.dto.response.SignInResponse;
+import com.r2s.core.exception.UserNotFoundException;
 import com.r2s.core.util.JwtUtils;
 
 //1.thêm displayName cho từng method
@@ -102,6 +102,7 @@ class AuthControllerTest {
 
 	// === POST /auth/register - validation errors ===
 
+	//
 	@Test
 	@DisplayName("POST /auth/register - Should return 400 when email is invalid")
 	void register_shouldReturnBadRequestWhenEmailInvalid() throws Exception {
@@ -125,6 +126,7 @@ class AuthControllerTest {
 		Mockito.verifyNoInteractions(userService);
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/register - Should return 400 when password is too short")
 	void register_shouldReturnBadRequestWhenPasswordTooShort() throws Exception {
@@ -148,6 +150,7 @@ class AuthControllerTest {
 		Mockito.verifyNoInteractions(userService);
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/register - Should return 400 when username is empty")
 	void register_shouldReturnBadRequestWhenUsernameEmpty() throws Exception {
@@ -171,6 +174,7 @@ class AuthControllerTest {
 		Mockito.verifyNoInteractions(userService);
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/register - Should return 400 when fullName is empty")
 	void register_shouldReturnBadRequestWhenFullNameEmpty() throws Exception {
@@ -240,6 +244,7 @@ class AuthControllerTest {
 		verify(userService).signIn(any(SignInRequest.class));
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/login - Should return 400 when username is empty")
 	void login_shouldReturnBadRequestWhenUsernameEmpty() throws Exception {
@@ -261,6 +266,7 @@ class AuthControllerTest {
 		Mockito.verifyNoInteractions(userService);
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/login - Should return 400 when password is empty")
 	void login_shouldReturnBadRequestWhenPasswordEmpty() throws Exception {
@@ -282,6 +288,7 @@ class AuthControllerTest {
 		Mockito.verifyNoInteractions(userService);
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/login - Should return 401 when user is not found")
 	void login_shouldReturnUnauthorizedWhenUserNotFound() throws Exception {
@@ -290,8 +297,8 @@ class AuthControllerTest {
 		request.setUsername("missingUser");
 		request.setPassword("123456");
 
-		when(userService.signIn(any(SignInRequest.class)))
-				.thenThrow(new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found"));
+		when(userService.signIn(any(SignInRequest.class))).thenThrow(
+				new org.springframework.security.core.userdetails.UsernameNotFoundException("User not found"));
 
 		// ===== ACT =====
 		ResultActions response = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
@@ -304,6 +311,7 @@ class AuthControllerTest {
 		verify(userService).signIn(any(SignInRequest.class));
 	}
 
+	//
 	@Test
 	@DisplayName("POST /auth/login - Should return 401 when user is deleted")
 	void login_shouldReturnUnauthorizedWhenUserDeleted() throws Exception {

@@ -137,6 +137,7 @@ class UserControllerIntegrationTest {
 				.andExpect(jsonPath("$.data[0].username", notNullValue()));
 	}
 
+	//
 	@Test
 	@DisplayName("getAllUsers - Should return forbidden when user role")
 	void getAllUsers_shouldReturnForbidden_whenUserRole() throws Exception {
@@ -174,6 +175,7 @@ class UserControllerIntegrationTest {
 		org.assertj.core.api.Assertions.assertThat(updated.getEmail()).isEqualTo("updated@example.com");
 	}
 
+	//
 	@Test
 	@DisplayName("updateMyProfile - Should return unauthorized when invalid token")
 	void updateMyProfile_shouldReturnUnauthorized_whenInvalidToken() throws Exception {
@@ -203,6 +205,7 @@ class UserControllerIntegrationTest {
 		org.assertj.core.api.Assertions.assertThat(userRepository.findByUsername("temp")).isEmpty();
 	}
 
+	//
 	@Test
 	@DisplayName("deleteUser - Should return forbidden when non-admin token")
 	void deleteUser_shouldReturnForbidden_whenNonAdmin() throws Exception {

@@ -61,6 +61,7 @@ class UserServiceTest {
 		verify(userRepository, times(1)).findAll();
 	}
 
+	//
 	@Test
 	@DisplayName("getAllUsers - Should return empty list when no users")
 	void getAllUsers_shouldReturnEmptyList_whenNoUsers() {
@@ -121,6 +122,7 @@ class UserServiceTest {
 		verify(userRepository, times(1)).findByUsername("missing");
 	}
 
+	//
 	@Test
 	@DisplayName("getUserByUsername - Should throw exception when user is deleted (treated as not found)")
 	void getUserByUsername_shouldThrowExceptionWhenUserDeleted() {
@@ -160,6 +162,7 @@ class UserServiceTest {
 		verify(userRepository, times(1)).save(mockUser);
 	}
 
+	//
 	@Test
 	@DisplayName("updateUser - Should not update if email is same as current")
 	void updateUser_shouldNotUpdate_whenEmailSameAsCurrent() {
@@ -185,6 +188,7 @@ class UserServiceTest {
 		verify(userRepository, times(1)).save(mockUser);
 	}
 
+	//
 	@Test
 	@DisplayName("updateUser - Should handle null fields gracefully")
 	void updateUser_shouldHandleNullFields_whenFieldsAreNull() {
@@ -209,6 +213,7 @@ class UserServiceTest {
 		verify(userRepository, times(1)).save(mockUser);
 	}
 
+	//
 	@Test
 	@DisplayName("updateUser - Should only update provided fields (partial update)")
 	void updateUser_shouldOnlyUpdateProvidedFields() {
@@ -235,6 +240,7 @@ class UserServiceTest {
 		verify(userRepository, times(1)).save(mockUser);
 	}
 
+	//
 	@Test
 	@DisplayName("updateUser - Should throw exception when user is deleted (treated as not found)")
 	void updateUser_shouldThrowExceptionWhenUserDeleted() {
@@ -305,6 +311,7 @@ class UserServiceTest {
 		verify(userRepository, never()).delete(Mockito.any());
 	}
 
+	//
 	@Test
 	@DisplayName("deleteUser - Should throw exception when user is deleted (treated as not found)")
 	void deleteUser_shouldThrowExceptionWhenUserDeleted() {

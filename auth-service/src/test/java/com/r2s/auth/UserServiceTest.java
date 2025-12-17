@@ -171,6 +171,7 @@ class UserServiceTest {
 		verify(userRepository, times(1)).save(any(User.class));
 	}
 
+	// 1
 	@Test
 	@DisplayName("signUp() should throw exception when role is not found")
 	void signUp_shouldThrowExceptionWhenRoleNotFound() {
@@ -197,6 +198,7 @@ class UserServiceTest {
 		verify(producer, never()).sendUserRegistered(any(CreateUserProfileDTO.class));
 	}
 
+	// 2
 	@Test
 	@DisplayName("signUp() should fail gracefully when Kafka producer throws exception")
 	void signUp_shouldHandleKafkaProducerFailure() {
@@ -230,6 +232,7 @@ class UserServiceTest {
 		verify(producer, times(1)).sendUserRegistered(any(CreateUserProfileDTO.class));
 	}
 
+	//
 	@Test
 	@DisplayName("signUp() should handle database exception when saving user")
 	void signUp_shouldHandleDatabaseException() {
@@ -259,6 +262,7 @@ class UserServiceTest {
 		verify(producer, never()).sendUserRegistered(any(CreateUserProfileDTO.class));
 	}
 
+	//
 	@Test
 	@DisplayName("signUp() should throw exception when email already exists (database constraint)")
 	void signUp_shouldThrowExceptionWhenEmailExists() {
@@ -333,6 +337,7 @@ class UserServiceTest {
 		verify(jwtUtils, never()).generateToken(any());
 	}
 
+	//
 	@Test
 	@DisplayName("signIn() should throw DisabledException when user is deleted/disabled")
 	void signIn_shouldThrowExceptionWhenUserDeleted() {
@@ -341,8 +346,7 @@ class UserServiceTest {
 		req.setUsername("deletedUser");
 		req.setPassword("password");
 
-		when(authenticationManager.authenticate(any()))
-				.thenThrow(new DisabledException("User is disabled or deleted"));
+		when(authenticationManager.authenticate(any())).thenThrow(new DisabledException("User is disabled or deleted"));
 
 		// Act + Assert
 		assertThrows(DisabledException.class, () -> userService.signIn(req));
@@ -350,16 +354,16 @@ class UserServiceTest {
 		verify(jwtUtils, never()).generateToken(any());
 	}
 
+	//
 	@Test
 	@DisplayName("signIn() should throw UsernameNotFoundException when user is not found")
-void signIn_shouldThrowExceptionWhenUserNotFound() {
+	void signIn_shouldThrowExceptionWhenUserNotFound() {
 		// Arrange
 		SignInRequest req = new SignInRequest();
 		req.setUsername("unknown");
 		req.setPassword("password");
 
-		when(authenticationManager.authenticate(any()))
-				.thenThrow(new UsernameNotFoundException("User not found"));
+		when(authenticationManager.authenticate(any())).thenThrow(new UsernameNotFoundException("User not found"));
 
 		// Act + Assert
 		assertThrows(UsernameNotFoundException.class, () -> userService.signIn(req));
@@ -367,6 +371,7 @@ void signIn_shouldThrowExceptionWhenUserNotFound() {
 		verify(jwtUtils, never()).generateToken(any());
 	}
 
+	//
 	@Test
 	@DisplayName("signIn() should handle token generation failure (e.g., expired token scenario)")
 	void signIn_shouldHandleExpiredToken() {
