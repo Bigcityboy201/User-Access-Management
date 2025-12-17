@@ -45,9 +45,13 @@ deploy-auth-service:
   script:
     - docker stop $AUTH_SERVICE_NAME || true
     - docker rm $AUTH_SERVICE_NAME || true
-    - docker run -d --name $AUTH_SERVICE_NAME -p 8080:8080 \
+    - |
+      docker run -d \
+        --name $AUTH_SERVICE_NAME \
+        -p 8080:8080 \
         -v $CI_PROJECT_DIR/$AUTH_JAR_PATH:/app.jar \
-        eclipse-temurin:17-jdk-alpine java -jar /app.jar
+        eclipse-temurin:17-jdk-alpine \
+        java -jar /app.jar
 
 deploy-user-service:
   stage: deploy
@@ -60,7 +64,11 @@ deploy-user-service:
   script:
     - docker stop $USER_SERVICE_NAME || true
     - docker rm $USER_SERVICE_NAME || true
-    - docker run -d --name $USER_SERVICE_NAME -p 8081:8081 \
+    - |
+      docker run -d \
+        --name $USER_SERVICE_NAME \
+        -p 8081:8081 \
         -v $CI_PROJECT_DIR/$USER_JAR_PATH:/app.jar \
-        eclipse-temurin:17-jdk-alpine java -jar /app.jar
+        eclipse-temurin:17-jdk-alpine \
+        java -jar /app.jar
 
