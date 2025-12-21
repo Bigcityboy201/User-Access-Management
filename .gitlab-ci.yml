@@ -9,24 +9,29 @@ variables:
   AUTH_JAR_PATH: auth-service/target/auth-service-1.0-SNAPSHOT.jar
   USER_JAR_PATH: user-service/target/user-service-1.0-SNAPSHOT.jar
 
+# ================= BUILD =================
 build_job:
   stage: build
   tags:
     - local
   script:
-    - echo ===== BUILD =====
+    - echo ===== CHECK ENV =====
+    - whoami
     - java -version
     - mvn -version
+    - echo ===== BUILD PROJECT =====
     - mvn clean package -DskipTests
 
+# ================= TEST =================
 test_job:
   stage: test
   tags:
     - local
   script:
-    - echo ===== TEST =====
+    - echo ===== RUN TESTS =====
     - mvn test
 
+# ================= DEPLOY AUTH SERVICE =================
 deploy_auth_service:
   stage: deploy
   tags:
@@ -35,15 +40,20 @@ deploy_auth_service:
     - main
   script:
     - echo ===== DEPLOY AUTH SERVICE =====
+    # Stop & remove container nếu đang chạy
     - docker stop %AUTH_SERVICE_NAME% || echo "not running"
     - docker rm %AUTH_SERVICE_NAME% || echo "not exist"
+    # Run container
     - docker run -d ^
         --name %AUTH_SERVICE_NAME% ^
         -p 8081:8081 ^
         -v %CD%\%AUTH_JAR_PATH%:/app.jar ^
         eclipse-temurin:17-jdk-alpine ^
         java -jar /app.jar
+    # Kiểm tra container
+    - docker ps -a
 
+# ================= DEPLOY USER SERVICE =================
 deploy_user_service:
   stage: deploy
   tags:
@@ -60,3 +70,16 @@ deploy_user_service:
         -v %CD%\%USER_JAR_PATH%:/app.jar ^
         eclipse-temurin:17-jdk-alpine ^
         java -jar /app.jar
+    - docker ps -a
+
+# ================= OPTIONAL: SMOKE TEST =================
+smoke_test:
+  stage: deploy
+  tags:
+    - local
+  only:
+    - main
+  script:
+    - echo ===== SMOKE TEST =====
+    - curl http://localhost:8081/actuator/health || echo "Auth service not responding"
+    - curl http://localhost:8082/actuator/health || echo "User service not responding"
