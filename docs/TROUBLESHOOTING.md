@@ -121,3 +121,58 @@ type C:\GitLab-Runner\config.toml
   ```
 - Service GitLab runner tự động sử dụng file config đúng khi chạy, không cần lo lắng về việc này khi chạy pipeline
 
+### Error: `shell cmd not found`
+
+**Triệu chứng:**
+```
+ERROR: Preparation failed: shell cmd not found
+Will be retried in 3s ...
+ERROR: Job failed (system failure): shell cmd not found
+```
+
+**Nguyên nhân:**
+GitLab runner không tìm thấy `cmd.exe` trong PATH khi chạy. Mặc dù `cmd.exe` luôn có sẵn trong Windows, runner có thể không tìm thấy nó do vấn đề về PATH hoặc cách chỉ định shell.
+
+**Giải pháp:**
+
+1. **Chỉ định đường dẫn đầy đủ đến cmd.exe trong config.toml:**
+
+   Mở file `C:\GitLab-Runner\config.toml` và thay đổi:
+   ```toml
+   shell = "cmd"
+   ```
+   
+   Thành:
+   ```toml
+   shell = "C:\\Windows\\System32\\cmd.exe"
+   ```
+
+2. **Hoặc sử dụng script tự động:**
+
+   Chạy script `fix-runner-config.ps1` (với quyền Administrator):
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File fix-runner-config.ps1
+   ```
+
+3. **Restart GitLab runner** (với quyền Administrator):
+   ```powershell
+   gitlab-runner restart
+   ```
+   
+   Hoặc restart qua Services:
+   - Mở `services.msc`
+   - Tìm service `gitlab-runner`
+   - Click chuột phải → Restart
+
+4. **Kiểm tra cấu hình đã được cập nhật:**
+   ```powershell
+   Get-Content C:\GitLab-Runner\config.toml | Select-String -Pattern "shell"
+   ```
+   
+   Kết quả mong đợi:
+   ```
+   shell = "C:\\Windows\\System32\\cmd.exe"
+   ```
+
+**Lưu ý:** Sau khi sửa và restart, pipeline sẽ tự động sử dụng đường dẫn đầy đủ đến cmd.exe và lỗi sẽ được khắc phục.
+
