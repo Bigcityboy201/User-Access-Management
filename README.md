@@ -44,6 +44,8 @@ The compose stack wires together Postgres, `user-service`, and `auth-service`. A
 
 Pushes to `main` automatically trigger all stages in GitLab. Merge Request pipelines run the build and test stages to block regressions before merging.
 
+**Troubleshooting:** Nếu gặp lỗi với GitLab runner (ví dụ: `pwsh: executable file not found`), xem [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) để biết cách khắc phục.
+
 ## Local Development Tips
 
 1. Use `./mvnw spring-boot:run` within `auth-service` or `user-service` to iterate quickly.
