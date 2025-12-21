@@ -41,15 +41,10 @@ deploy_auth_service:
   script:
     - echo ===== DEPLOY AUTH SERVICE =====
     # Stop & remove container nếu đang chạy
-    - docker stop %AUTH_SERVICE_NAME% || echo "not running"
-    - docker rm %AUTH_SERVICE_NAME% || echo "not exist"
+    - docker stop $env:AUTH_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not running" }
+    - docker rm $env:AUTH_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not exist" }
     # Run container
-    - docker run -d ^
-        --name %AUTH_SERVICE_NAME% ^
-        -p 8081:8081 ^
-        -v %CD%\%AUTH_JAR_PATH%:/app.jar ^
-        eclipse-temurin:17-jdk-alpine ^
-        java -jar /app.jar
+    - docker run -d --name $env:AUTH_SERVICE_NAME -p 8081:8081 -v "$PWD\$env:AUTH_JAR_PATH`:/app.jar" eclipse-temurin:17-jdk-alpine java -jar /app.jar
     # Kiểm tra container
     - docker ps -a
 
@@ -62,14 +57,9 @@ deploy_user_service:
     - main
   script:
     - echo ===== DEPLOY USER SERVICE =====
-    - docker stop %USER_SERVICE_NAME% || echo "not running"
-    - docker rm %USER_SERVICE_NAME% || echo "not exist"
-    - docker run -d ^
-        --name %USER_SERVICE_NAME% ^
-        -p 8082:8082 ^
-        -v %CD%\%USER_JAR_PATH%:/app.jar ^
-        eclipse-temurin:17-jdk-alpine ^
-        java -jar /app.jar
+    - docker stop $env:USER_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not running" }
+    - docker rm $env:USER_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not exist" }
+    - docker run -d --name $env:USER_SERVICE_NAME -p 8082:8082 -v "$PWD\$env:USER_JAR_PATH`:/app.jar" eclipse-temurin:17-jdk-alpine java -jar /app.jar
     - docker ps -a
 
 # ================= OPTIONAL: SMOKE TEST =================
@@ -81,5 +71,5 @@ smoke_test:
     - main
   script:
     - echo ===== SMOKE TEST =====
-    - curl http://localhost:8081/actuator/health || echo "Auth service not responding"
-    - curl http://localhost:8082/actuator/health || echo "User service not responding"
+    - curl http://localhost:8081/actuator/health; if ($LASTEXITCODE -ne 0) { echo "Auth service not responding" }
+    - curl http://localhost:8082/actuator/health; if ($LASTEXITCODE -ne 0) { echo "User service not responding" }
