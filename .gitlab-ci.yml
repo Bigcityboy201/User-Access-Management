@@ -16,8 +16,8 @@ build_job:
   tags:
     - local
   script:
-    - chmod +x mvnw
-    - ./mvnw clean package -DskipTests
+    - mvn -version
+    - mvn clean package -DskipTests
   artifacts:
     paths:
       - auth-service/target/*.jar
@@ -32,7 +32,7 @@ test_job:
   dependencies:
     - build_job
   script:
-    - ./mvnw test
+    - mvn test
 
 deploy_auth_service:
   stage: deploy
@@ -43,9 +43,13 @@ deploy_auth_service:
   dependencies:
     - build_job
   script:
-    - docker stop $AUTH_SERVICE_NAME || true
-    - docker rm $AUTH_SERVICE_NAME || true
-    - docker run -d --name $AUTH_SERVICE_NAME -p 8080:8080 -v $CI_PROJECT_DIR/$AUTH_JAR_PATH:/app.jar eclipse-temurin:17-jdk-alpine java -jar /app.jar
+    - docker stop auth-service || exit 0
+    - docker rm auth-service || exit 0
+    - docker run -d --name auth-service `
+        -p 8081:8081 `
+        -v "$CI_PROJECT_DIR/$AUTH_JAR_PATH:/app.jar" `
+        eclipse-temurin:17-jdk-alpine `
+        java -jar /app.jar
 
 deploy_user_service:
   stage: deploy
@@ -56,6 +60,10 @@ deploy_user_service:
   dependencies:
     - build_job
   script:
-    - docker stop $USER_SERVICE_NAME || true
-    - docker rm $USER_SERVICE_NAME || true
-    - docker run -d --name $USER_SERVICE_NAME -p 8081:8081 -v $CI_PROJECT_DIR/$USER_JAR_PATH:/app.jar eclipse-temurin:17-jdk-alpine java -jar /app.jar
+    - docker stop user-service || exit 0
+    - docker rm user-service || exit 0
+    - docker run -d --name user-service `
+        -p 8082:8082 `
+        -v "$CI_PROJECT_DIR/$USER_JAR_PATH:/app.jar" `
+        eclipse-temurin:17-jdk-alpine `
+        java -jar /app.jar
