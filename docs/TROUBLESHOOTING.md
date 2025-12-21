@@ -176,3 +176,67 @@ GitLab runner không tìm thấy `cmd.exe` trong PATH khi chạy. Mặc dù `cmd
 
 **Lưu ý:** Sau khi sửa và restart, pipeline sẽ tự động sử dụng đường dẫn đầy đủ đến cmd.exe và lỗi sẽ được khắc phục.
 
+### Error: `shell C:\Windows\System32\cmd.exe not found`
+
+**Triệu chứng:**
+```
+ERROR: Preparation failed: shell C:\Windows\System32\cmd.exe not found
+Will be retried in 3s ...
+ERROR: Job failed (system failure): shell C:\Windows\System32\cmd.exe not found
+```
+
+**Nguyên nhân:**
+Mặc dù đã chỉ định đường dẫn đầy đủ đến `cmd.exe`, GitLab runner vẫn không thể tìm thấy hoặc truy cập file này. Điều này có thể do:
+- Vấn đề về quyền truy cập của GitLab runner service
+- Windows File System Redirection (32-bit vs 64-bit)
+- Cấu hình PATH không đúng trong môi trường của runner
+
+**Giải pháp: Chuyển sang PowerShell (Khuyến nghị)**
+
+PowerShell có sẵn trên Windows và tương thích tốt hơn với GitLab runner:
+
+1. **Cập nhật config.toml để dùng PowerShell:**
+
+   Chạy script tự động:
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File fix-runner-powershell.ps1
+   ```
+   
+   Hoặc sửa thủ công file `C:\GitLab-Runner\config.toml`:
+   ```toml
+   shell = "powershell"
+   ```
+
+2. **Cập nhật file `.gitlab-ci.yml` để tương thích với PowerShell:**
+
+   - Thay `%VARIABLE%` thành `$env:VARIABLE`
+   - Thay `%CD%` thành `$PWD`
+   - Thay `^` (line continuation) thành `;` hoặc backtick `` ` ``
+   - Thay `||` thành `; if ($LASTEXITCODE -ne 0) { ... }`
+
+   Ví dụ:
+   ```yaml
+   # CMD syntax (cũ)
+   - docker stop %SERVICE_NAME% || echo "not running"
+   
+   # PowerShell syntax (mới)
+   - docker stop $env:SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not running" }
+   ```
+
+3. **Restart GitLab runner** (với quyền Administrator):
+   ```powershell
+   gitlab-runner restart
+   ```
+
+4. **Kiểm tra cấu hình:**
+   ```powershell
+   Get-Content C:\GitLab-Runner\config.toml | Select-String -Pattern "shell"
+   ```
+   
+   Kết quả mong đợi:
+   ```
+   shell = "powershell"
+   ```
+
+**Lưu ý:** File `.gitlab-ci.yml` trong repository đã được cập nhật để tương thích với PowerShell. Sau khi restart runner, pipeline sẽ chạy thành công.
+
