@@ -13,6 +13,8 @@ variables:
 
 build_job:
   stage: build
+  tags:
+    - local
   script:
     - chmod +x mvnw
     - ./mvnw clean package -DskipTests
@@ -25,6 +27,8 @@ build_job:
 
 test_job:
   stage: test
+  tags:
+    - local
   dependencies:
     - build_job
   script:
@@ -32,6 +36,8 @@ test_job:
 
 deploy_auth_service:
   stage: deploy
+  tags:
+    - local
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   dependencies:
@@ -43,6 +49,8 @@ deploy_auth_service:
 
 deploy_user_service:
   stage: deploy
+  tags:
+    - local
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   dependencies:
