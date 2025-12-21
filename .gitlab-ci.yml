@@ -1,5 +1,3 @@
-image: openjdk:17-jdk-slim
-
 stages:
   - build
   - test
@@ -16,54 +14,49 @@ build_job:
   tags:
     - local
   script:
+    - echo ===== BUILD =====
+    - java -version
     - mvn -version
     - mvn clean package -DskipTests
-  artifacts:
-    paths:
-      - auth-service/target/*.jar
-      - user-service/target/*.jar
-      - core/target/*.jar
-    expire_in: 1 hour
 
 test_job:
   stage: test
   tags:
     - local
-  dependencies:
-    - build_job
   script:
+    - echo ===== TEST =====
     - mvn test
 
 deploy_auth_service:
   stage: deploy
   tags:
     - local
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-  dependencies:
-    - build_job
+  only:
+    - main
   script:
-    - docker stop auth-service || exit 0
-    - docker rm auth-service || exit 0
-    - docker run -d --name auth-service `
-        -p 8081:8081 `
-        -v "$CI_PROJECT_DIR/$AUTH_JAR_PATH:/app.jar" `
-        eclipse-temurin:17-jdk-alpine `
+    - echo ===== DEPLOY AUTH SERVICE =====
+    - docker stop %AUTH_SERVICE_NAME% || echo "not running"
+    - docker rm %AUTH_SERVICE_NAME% || echo "not exist"
+    - docker run -d ^
+        --name %AUTH_SERVICE_NAME% ^
+        -p 8081:8081 ^
+        -v %CD%\%AUTH_JAR_PATH%:/app.jar ^
+        eclipse-temurin:17-jdk-alpine ^
         java -jar /app.jar
 
 deploy_user_service:
   stage: deploy
   tags:
     - local
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-  dependencies:
-    - build_job
+  only:
+    - main
   script:
-    - docker stop user-service || exit 0
-    - docker rm user-service || exit 0
-    - docker run -d --name user-service `
-        -p 8082:8082 `
-        -v "$CI_PROJECT_DIR/$USER_JAR_PATH:/app.jar" `
-        eclipse-temurin:17-jdk-alpine `
+    - echo ===== DEPLOY USER SERVICE =====
+    - docker stop %USER_SERVICE_NAME% || echo "not running"
+    - docker rm %USER_SERVICE_NAME% || echo "not exist"
+    - docker run -d ^
+        --name %USER_SERVICE_NAME% ^
+        -p 8082:8082 ^
+        -v %CD%\%USER_JAR_PATH%:/app.jar ^
+        eclipse-temurin:17-jdk-alpine ^
         java -jar /app.jar
