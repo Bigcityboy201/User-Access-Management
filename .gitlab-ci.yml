@@ -39,7 +39,8 @@ deploy-auth-service:
   tags:
     - local
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+  - if: '$CI_COMMIT_BRANCH == "main"'
+
   dependencies:
     - build-job
   script:
@@ -57,8 +58,9 @@ deploy-user-service:
   stage: deploy
   tags:
     - local
-  rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+ rules:
+  - if: '$CI_COMMIT_BRANCH == "main"'
+
   dependencies:
     - build-job
   script:
