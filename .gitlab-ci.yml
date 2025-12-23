@@ -44,7 +44,6 @@ deploy_auth_service:
     - docker rm $env:AUTH_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not exist" }
 
     - docker run -d --name $env:AUTH_SERVICE_NAME `
-        --restart unless-stopped `
         --network user-access-management_default `
         -p 8081:8081 `
         -e SPRING_PROFILES_ACTIVE=docker `
@@ -52,7 +51,7 @@ deploy_auth_service:
         -e SPRING_DATASOURCE_USERNAME="postgres" `
         -e SPRING_DATASOURCE_PASSWORD="quangtruong1" `
         -e SPRING_KAFKA_BOOTSTRAP_SERVERS="kafka:9092" `
-        -v "${PWD}\$env:AUTH_JAR_PATH:/app.jar" `
+        -v "$PWD\$env:AUTH_JAR_PATH:/app.jar" `
         eclipse-temurin:17-jdk-alpine `
         java -jar /app.jar
 
@@ -71,7 +70,6 @@ deploy_user_service:
     - docker rm $env:USER_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not exist" }
 
     - docker run -d --name $env:USER_SERVICE_NAME `
-        --restart unless-stopped `
         --network user-access-management_default `
         -p 8082:8082 `
         -e SPRING_PROFILES_ACTIVE=docker `
@@ -79,7 +77,7 @@ deploy_user_service:
         -e SPRING_DATASOURCE_USERNAME="postgres" `
         -e SPRING_DATASOURCE_PASSWORD="quangtruong1" `
         -e SPRING_KAFKA_BOOTSTRAP_SERVERS="kafka:9092" `
-        -v "${PWD}\$env:USER_JAR_PATH:/app.jar" `
+        -v "$PWD\$env:USER_JAR_PATH:/app.jar" `
         eclipse-temurin:17-jdk-alpine `
         java -jar /app.jar
 
