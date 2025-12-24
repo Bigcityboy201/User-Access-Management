@@ -4,10 +4,25 @@ stages:
   - deploy
 
 variables:
-  AUTH_SERVICE_NAME: auth-service
-  USER_SERVICE_NAME: user-service
-  AUTH_JAR_PATH: auth-service/target/auth-service-1.0-SNAPSHOT.jar
-  USER_JAR_PATH: user-service/target/user-service-1.0-SNAPSHOT.jar
+  # Các biến môi trường
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  COMPOSE_PROJECT_NAME: user-access-management
+  SPRING_PROFILES_ACTIVE: docker
+  SPRING_DATASOURCE_USERNAME: postgres
+  SPRING_DATASOURCE_PASSWORD: quangtruong1
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+# Sử dụng Docker-in-Docker service
+services:
+  - docker:dind
+
+# Cache để tăng tốc quá trình build
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .m2/repository/
+    - target/
 
 # ================= BUILD =================
 build_job:
@@ -15,12 +30,12 @@ build_job:
   tags:
     - local
   script:
-    - echo ===== CHECK ENV =====
-    - whoami
-    - java -version
-    - mvn -version
-    - echo ===== BUILD PROJECT =====
+    - echo "===== BUILD PROJECT ====="
     - mvn clean package -DskipTests
+  artifacts:
+    paths:
+      - auth-service/target/*.jar
+      - user-service/target/*.jar
 
 # ================= TEST =================
 test_job:
@@ -28,69 +43,34 @@ test_job:
   tags:
     - local
   script:
-    - echo ===== RUN TESTS =====
+    - echo "===== RUN TESTS ====="
     - mvn test
 
-# ================= DEPLOY AUTH SERVICE =================
-deploy_auth_service:
+# ================= DEPLOY =================
+deploy_job:
   stage: deploy
   tags:
     - local
   only:
     - main
+  before_script:
+    - echo "===== SETUP DOCKER ENVIRONMENT ====="
+    - docker --version
+    - docker-compose --version
   script:
-    - echo ===== DEPLOY AUTH SERVICE =====
-    - docker stop $env:AUTH_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not running" }
-    - docker rm $env:AUTH_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not exist" }
+    - echo "===== STOPPING EXISTING CONTAINERS ====="
+    - docker-compose down || true
 
-    - docker run -d --name $env:AUTH_SERVICE_NAME `
-        --network user-access-management_default `
-        -p 8081:8081 `
-        -e SPRING_PROFILES_ACTIVE=docker `
-        -e SPRING_DATASOURCE_URL="jdbc:postgresql://postgres-db:5432/auth-service" `
-        -e SPRING_DATASOURCE_USERNAME="postgres" `
-        -e SPRING_DATASOURCE_PASSWORD="quangtruong1" `
-        -e SPRING_KAFKA_BOOTSTRAP_SERVERS="kafka:9092" `
-        -v "$PWD\$env:AUTH_JAR_PATH:/app.jar" `
-        eclipse-temurin:17-jdk-alpine `
-        java -jar /app.jar
+    - echo "===== BUILDING AND STARTING CONTAINERS ====="
+    - docker-compose up -d --build
 
+    - echo "===== CHECKING CONTAINER STATUS ====="
     - docker ps -a
 
-# ================= DEPLOY USER SERVICE =================
-deploy_user_service:
-  stage: deploy
-  tags:
-    - local
-  only:
-    - main
-  script:
-    - echo ===== DEPLOY USER SERVICE =====
-    - docker stop $env:USER_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not running" }
-    - docker rm $env:USER_SERVICE_NAME; if ($LASTEXITCODE -ne 0) { echo "not exist" }
+    - echo "===== WAITING FOR SERVICES TO START ====="
+    - sleep 30
 
-    - docker run -d --name $env:USER_SERVICE_NAME `
-        --network user-access-management_default `
-        -p 8082:8082 `
-        -e SPRING_PROFILES_ACTIVE=docker `
-        -e SPRING_DATASOURCE_URL="jdbc:postgresql://postgres-db:5432/user-service" `
-        -e SPRING_DATASOURCE_USERNAME="postgres" `
-        -e SPRING_DATASOURCE_PASSWORD="quangtruong1" `
-        -e SPRING_KAFKA_BOOTSTRAP_SERVERS="kafka:9092" `
-        -v "$PWD\$env:USER_JAR_PATH:/app.jar" `
-        eclipse-temurin:17-jdk-alpine `
-        java -jar /app.jar
-
-    - docker ps -a
-
-# ================= OPTIONAL: SMOKE TEST =================
-smoke_test:
-  stage: deploy
-  tags:
-    - local
-  only:
-    - main
-  script:
-    - echo ===== SMOKE TEST =====
-    - curl http://localhost:8081/actuator/health; if ($LASTEXITCODE -ne 0) { echo "Auth service not responding" }
-    - curl http://localhost:8082/actuator/health; if ($LASTEXITCODE -ne 0) { echo "User service not responding" }
+    - echo "===== RUNNING HEALTH CHECKS ====="
+    - docker-compose ps
+    - curl -s http://localhost:8081/actuator/health || echo "Auth Service health check failed"
+    - curl -s http://localhost:8082/actuator/health || echo "User Service health check failed"
