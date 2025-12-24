@@ -8,10 +8,21 @@ variables:
   DOCKER_DRIVER: overlay2
   DOCKER_TLS_CERTDIR: ""
   COMPOSE_PROJECT_NAME: user-access-management
-  SPRING_PROFILES_ACTIVE: docker
-  SPRING_DATASOURCE_USERNAME: postgres
-  SPRING_DATASOURCE_PASSWORD: quangtruong1
-  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+  # Database Configuration
+  DB_URL: "jdbc:postgresql://localhost:5432/auth-service"
+  DB_USERNAME: "postgres"
+  DB_PASSWORD: "quangtruong1"
+
+  # JWT Configuration
+  JWT_SECRET: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
+  JWT_DURATION: "86400"
+
+  # Kafka Configuration
+  KAFKA_SERVER: "localhost:9092"
+
+  # Spring Profile
+  SPRING_PROFILES_ACTIVE: "local"
 
 # Sử dụng Docker-in-Docker service
 services:
