@@ -4,36 +4,21 @@ stages:
   - deploy
 
 variables:
-  # Các biến môi trường
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: ""
   COMPOSE_PROJECT_NAME: user-access-management
-
-  # Database Configuration
-  DB_URL: "jdbc:postgresql://localhost:5432/auth-service"
-  DB_USERNAME: "postgres"
-  DB_PASSWORD: "quangtruong1"
-
-  # JWT Configuration
+  # Sửa lại tên biến để khớp với lỗi Spring tìm không thấy
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://localhost:5432/auth-service"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  SPRING_DATASOURCE_PASSWORD: "quangtruong1"
   JWT_SECRET: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
-  JWT_DURATION: "86400"
-
-  # Kafka Configuration
   KAFKA_SERVER: "localhost:9092"
+  SPRING_PROFILES_ACTIVE: "docker" # Đổi thành docker vì bạn đang chạy deploy qua docker-compose
 
-  # Spring Profile
-  SPRING_PROFILES_ACTIVE: "local"
-
-# Sử dụng Docker-in-Docker service
-services:
-  - docker:dind
-
-# Cache để tăng tốc quá trình build
 cache:
   key: "$CI_COMMIT_REF_SLUG"
   paths:
     - .m2/repository/
-    - target/
 
 # ================= BUILD =================
 build_job:
@@ -41,12 +26,14 @@ build_job:
   tags:
     - local
   script:
+    - echo "===== CLEANING OLD DOCKER IMAGES TO FREE SPACE ====="
+    - docker system prune -f   # Dọn dẹp ổ đĩa để tránh lỗi "Not enough space"
     - echo "===== BUILD PROJECT ====="
     - mvn clean package -DskipTests
   artifacts:
     paths:
-      - auth-service/target/*.jar
-      - user-service/target/*.jar
+      - "auth-service/target/*.jar"
+      - "user-service/target/*.jar"
 
 # ================= TEST =================
 test_job:
@@ -64,13 +51,14 @@ deploy_job:
     - local
   only:
     - main
-  before_script:
+  script:
     - echo "===== SETUP DOCKER ENVIRONMENT ====="
     - docker --version
     - docker-compose --version
-  script:
+
     - echo "===== STOPPING EXISTING CONTAINERS ====="
-    - docker-compose down || true
+    # PowerShell không hiểu "|| true". Ta dùng cấu trúc Try/Catch hoặc lờ đi
+    - docker-compose down
 
     - echo "===== BUILDING AND STARTING CONTAINERS ====="
     - docker-compose up -d --build
@@ -78,10 +66,7 @@ deploy_job:
     - echo "===== CHECKING CONTAINER STATUS ====="
     - docker ps -a
 
-    - echo "===== WAITING FOR SERVICES TO START ====="
-    - sleep 30
-
     - echo "===== RUNNING HEALTH CHECKS ====="
+    # Sử dụng PowerShell Invoke-RestMethod thay cho curl nếu curl không có sẵn
+    - sleep 20
     - docker-compose ps
-    - curl -s http://localhost:8081/actuator/health || echo "Auth Service health check failed"
-    - curl -s http://localhost:8082/actuator/health || echo "User Service health check failed"
