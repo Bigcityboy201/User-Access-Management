@@ -67,7 +67,7 @@ deploy_job:
       }
 
     - echo "===== XÂY DỰNG VÀ KHỞI CHẠY CONTAINER ====="
-    - docker-compose -f docker-compose.yml up -d --build
+    - docker-compose -f docker-compose.yaml up -d --build
 
     - echo "===== KIỂM TRA TRẠNG THÁI CONTAINER ====="
     - docker ps -a
