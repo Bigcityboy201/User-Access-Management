@@ -173,29 +173,60 @@ class UserServiceTest {
 
 	// 1
 	@Test
-	@DisplayName("signUp() should throw exception when role is not found")
-	void signUp_shouldThrowExceptionWhenRoleNotFound() {
+	@DisplayName("signUp() should create and save new role if role not exists but is valid")
+	void signUp_shouldCreateRoleWhenNotExist() {
 		// Arrange
 		SignUpRequest request = new SignUpRequest();
 		request.setUsername("john");
 		request.setPassword("pass");
-
 		SignUpRequest.RoleRequest roleReq = new SignUpRequest.RoleRequest();
-		roleReq.setRoleName("MANAGER");
+
+		// Sửa MANAGER thành một Role hợp lệ theo logic code (ví dụ MODERATOR)
+		roleReq.setRoleName(SecurityRole.ROLE_MODERATOR);
+		request.setRole(roleReq);
+
+		Role newRole = Role.builder().id(3).roleName(SecurityRole.ROLE_MODERATOR).build();
+		User savedUser = User.builder().id(1).username("john").password("encodedPassword").roles(List.of(newRole))
+				.build();
+
+		when(userRepository.findByUsername("john")).thenReturn(Optional.empty());
+		when(passwordEncoder.encode("pass")).thenReturn("encodedPassword");
+
+		// Giả lập là không tìm thấy trong DB để đi vào nhánh tạo mới
+		when(roleRepository.findByRoleName(SecurityRole.ROLE_MODERATOR)).thenReturn(Optional.empty());
+		when(roleRepository.save(any(Role.class))).thenReturn(newRole);
+		when(userRepository.save(any(User.class))).thenReturn(savedUser);
+		doNothing().when(producer).sendUserRegistered(any(CreateUserProfileDTO.class));
+
+		// Act
+		Boolean result = userService.signUp(request);
+
+		// Assert
+		assertTrue(result);
+		verify(roleRepository, times(1)).findByRoleName(SecurityRole.ROLE_MODERATOR);
+		verify(roleRepository, times(1)).save(any(Role.class));
+		verify(userRepository, times(1)).save(any(User.class));
+	}
+
+	@Test
+	@DisplayName("signUp() should throw exception when role is invalid")
+	void signUp_shouldThrowException_whenRoleIsInvalid() {
+		// Arrange
+		SignUpRequest request = new SignUpRequest();
+		request.setUsername("john");
+		SignUpRequest.RoleRequest roleReq = new SignUpRequest.RoleRequest();
+		roleReq.setRoleName("MANAGER"); // Role không hợp lệ
 		request.setRole(roleReq);
 
 		when(userRepository.findByUsername("john")).thenReturn(Optional.empty());
-		when(roleRepository.findByRoleName("MANAGER")).thenReturn(Optional.empty());
 
 		// Act + Assert
-		RuntimeException ex = assertThrows(RuntimeException.class, () -> userService.signUp(request));
-		assertEquals("Role not found: MANAGER", ex.getMessage());
+		RuntimeException ex = assertThrows(RuntimeException.class, () -> {
+			userService.signUp(request);
+		});
 
-		// Verify interactions
-		verify(userRepository, times(1)).findByUsername("john");
-		verify(roleRepository, times(1)).findByRoleName("MANAGER");
+		assertTrue(ex.getMessage().contains("Invalid role: MANAGER"));
 		verify(userRepository, never()).save(any(User.class));
-		verify(producer, never()).sendUserRegistered(any(CreateUserProfileDTO.class));
 	}
 
 	// 2
