@@ -8,7 +8,7 @@ variables:
   DOCKER_TLS_CERTDIR: ""
   COMPOSE_PROJECT_NAME: user-access-management
   # Khuyến nghị: Đổi tên biến này để Spring Boot nhận diện tự động
-  SPRING_DATASOURCE_URL: "jdbc:postgresql://localhost:5432/auth-service"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://localhost:55432/auth-service"
   SPRING_DATASOURCE_USERNAME: "postgres"
   SPRING_DATASOURCE_PASSWORD: "quangtruong1"
   JWT_SECRET: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
