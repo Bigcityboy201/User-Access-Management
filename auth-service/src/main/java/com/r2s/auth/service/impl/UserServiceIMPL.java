@@ -1,6 +1,7 @@
 package com.r2s.auth.service.impl;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -17,6 +18,7 @@ import com.r2s.core.dto.CreateUserProfileDTO;
 import com.r2s.core.dto.request.SignInRequest;
 import com.r2s.core.dto.request.SignUpRequest;
 import com.r2s.core.dto.response.SignInResponse;
+import com.r2s.core.entity.Role;
 import com.r2s.core.entity.User;
 import com.r2s.core.exception.UserAlreadyExistException;
 import com.r2s.core.repository.RoleRepository;
@@ -59,13 +61,24 @@ public class UserServiceIMPL implements UserService {
 		String roleName = (request.getRole() != null && request.getRole().getRoleName() != null)
 				? request.getRole().getRoleName()
 				: SecurityRole.ROLE_USER;
-
-		// Resolve role - if not found, fail fast with clear message (for tests)
-		var roleOpt = roleRepository.findByRoleName(roleName);
-		if (roleOpt.isEmpty()) {
-			throw new RuntimeException("Role not found: " + roleName);
+		if (!roleName.equals(SecurityRole.ROLE_USER) && !roleName.equals(SecurityRole.ROLE_ADMIN)
+				&& !roleName.equals(SecurityRole.ROLE_MODERATOR)) {
+			throw new RuntimeException("Invalid role: " + roleName);
 		}
-		user.setRoles(List.of(roleOpt.get()));
+
+		// Tìm role trong DB
+		var roleOpt = roleRepository.findByRoleName(roleName);
+		Role role;
+		if (roleOpt.isEmpty()) {
+			// Nếu chưa có trong DB, tạo mới role
+			role = Role.builder().roleName(roleName).description(roleName + " role").build();
+			role = roleRepository.save(role);
+		} else {
+			role = roleOpt.get();
+		}
+
+		// Gán role cho user
+		user.setRoles(List.of(role));
 
 		User savedUser;
 		try {
@@ -78,7 +91,7 @@ public class UserServiceIMPL implements UserService {
 
 		// Kafka event – use the in-memory user roles so that mocks that return null
 		// from save() in unit tests don't break this logic
-		List<String> roleNames = user.getRoles().stream().map(role -> role.getRoleName()).toList();
+		List<String> roleNames = user.getRoles().stream().map(Role::getRoleName).collect(Collectors.toList());
 
 		// Send event to Kafka for user-service
 		CreateUserProfileDTO event = CreateUserProfileDTO.builder().userId(savedUser != null ? savedUser.getId() : null)
