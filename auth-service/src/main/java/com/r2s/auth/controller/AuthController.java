@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping(path = "/auth")
 public class AuthController {
 
-	// 12345
+	// 1234
 	private final UserService userService;
 	private final AuthenticationManager authenticationManager;
 	private final JwtUtils jwtUtils;
