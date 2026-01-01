@@ -5,12 +5,14 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
-  DOCKER_TLS_CERTDIR: ""
   COMPOSE_PROJECT_NAME: user-access-management
-  SPRING_PROFILES_ACTIVE: docker
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://localhost:55432/auth-service"
+  SPRING_DATASOURCE_USERNAME: "postgres"
+  SPRING_DATASOURCE_PASSWORD: "quangtruong1"
   JWT_SECRET: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
   JWT_DURATION: "86400"
-  KAFKA_SERVER: "kafka:9092"
+  KAFKA_SERVER: "localhost:9092"
+  SPRING_PROFILES_ACTIVE: "local"
 
 services:
   - docker:dind
@@ -23,11 +25,12 @@ cache:
 # ================= BUILD =================
 build_job:
   stage: build
-  tags:
-    - local
+  image: maven:3.9.4-eclipse-temurin-17
   script:
-    - echo "===== BUILD PROJECT ====="
-    - mvn clean package -DskipTests
+    - echo "===== BUILD AUTH SERVICE ====="
+    - mvn -f auth-service/pom.xml clean package -DskipTests
+    - echo "===== BUILD USER SERVICE ====="
+    - mvn -f user-service/pom.xml clean package -DskipTests
   artifacts:
     paths:
       - "auth-service/target/*.jar"
@@ -36,64 +39,40 @@ build_job:
 # ================= TEST =================
 test_job:
   stage: test
-  tags:
-    - local
-  before_script:
-    - echo "===== SETUP DOCKER ENVIRONMENT FOR TESTS ====="
-    - docker --version
-    - docker-compose --version
-    - echo "===== KHỞI ĐỘNG DATABASE VÀ KAFKA ====="
-    - docker-compose -f docker-compose.yaml up -d postgres-db kafka zookeeper
-    - echo "===== CHỜ DATABASE SẴN SÀNG ====="
-    - sleep 15
-    - docker-compose -f docker-compose.yaml exec -T postgres-db pg_isready -U postgres || echo "Database check failed, continuing anyway..."
-    - echo "===== TẠO DATABASE CHO TEST ====="
-    - docker-compose -f docker-compose.yaml exec -T postgres-db psql -U postgres -c "CREATE DATABASE auth_service_it;" || echo "Database auth_service_it đã tồn tại"
-    - docker-compose -f docker-compose.yaml exec -T postgres-db psql -U postgres -c "CREATE DATABASE user_service_it;" || echo "Database user_service_it đã tồn tại"
+  image: maven:3.9.4-eclipse-temurin-17
   script:
-    - echo "===== RUN TESTS ====="
-    - mvn test
-  after_script:
-    - echo "===== DỌN DẸP SAU TEST ====="
-    - docker-compose -f docker-compose.yaml down || true
-  allow_failure: false # Nếu test fail thì pipeline fail
+    - echo "===== RUN TESTS AUTH SERVICE ====="
+    - mvn -f auth-service/pom.xml test
+    - echo "===== RUN TESTS USER SERVICE ====="
+    - mvn -f user-service/pom.xml test
 
 # ================= DEPLOY =================
 deploy_job:
   stage: deploy
-  tags:
-    - local
+  image: docker:24.0.5
+  services:
+    - docker:dind
   only:
     - main
   before_script:
-    - echo "===== SETUP DOCKER ENVIRONMENT ====="
+    - echo "===== CHECK DOCKER VERSION ====="
     - docker --version
     - docker-compose --version
   script:
-    # Dừng và xóa container cũ, giữ volumes (Postgres data)
-    - echo "===== XÓA CÁC CONTAINER CŨ ====="
-    - docker-compose -f docker-compose.yaml down
+    - echo "===== STOP ANY EXISTING CONTAINERS ====="
+    - docker-compose -f docker-compose.yaml down || true
 
-    # Dọn network thừa (tuỳ CI)
-    - docker network prune -f || true
-
-    # Build & run container
-    - echo "===== BUILD & RUN CONTAINERS ====="
+    - echo "===== BUILD AND START CONTAINERS ====="
     - docker-compose -f docker-compose.yaml up -d --build
 
-    # Kiểm tra trạng thái container
-    - echo "===== KIỂM TRA TRẠNG THÁI CONTAINER ====="
-    - docker-compose -f docker-compose.yaml ps
-    - docker ps -a
-
-    # Chờ service khởi động
-    - echo "===== ĐANG CHỜ CÁC DỊCH VỤ KHỞI ĐỘNG ====="
+    - echo "===== WAIT FOR SERVICES TO START ====="
     - sleep 30
 
-    # Kiểm tra health của các service
-    - echo "===== KIỂM TRA HEALTH SERVICE ====="
-    - |
-      for url in http://localhost:8081/actuator/health http://localhost:8082/actuator/health; do
-        echo "Checking $url"
-        curl -f $url || echo "Lỗi service tại $url"
-      done
+    - echo "===== CHECK CONTAINERS STATUS ====="
+    - docker ps -a
+
+    - echo "===== HEALTH CHECK AUTH SERVICE ====="
+    - curl -f http://localhost:8081/actuator/health || echo "Auth Service not ready"
+
+    - echo "===== HEALTH CHECK USER SERVICE ====="
+    - curl -f http://localhost:8082/actuator/health || echo "User Service not ready"
