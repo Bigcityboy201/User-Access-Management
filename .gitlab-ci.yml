@@ -43,55 +43,40 @@ test_job:
   tags:
     - local
   before_script:
+    - $ErrorActionPreference = "Continue"
     - echo "===== SETUP DOCKER ENVIRONMENT FOR TESTS ====="
     - docker --version
     - docker-compose --version
     - echo "===== XÓA CONTAINER CŨ (NẾU CÓ) ====="
-    - |
-      try {
-          docker-compose -f docker-compose.yaml down
-      } catch {
-          Write-Output "No containers to stop"
-      }
+    - docker-compose -f docker-compose.yaml down; if ($LASTEXITCODE -ne 0) { Write-Output "No containers to stop or error occurred" }
     - echo "===== KHỞI ĐỘNG DATABASE VÀ KAFKA ====="
     - docker-compose -f docker-compose.yaml up -d postgres-db kafka zookeeper
     - echo "===== CHỜ DATABASE SẴN SÀNG ====="
     - Start-Sleep -Seconds 15
     - echo "===== KIỂM TRA DATABASE ====="
-    - |
-      try {
-          docker-compose -f docker-compose.yaml exec -T postgres-db pg_isready -U postgres
-      } catch {
-          Write-Output "Database check failed, continuing anyway..."
-      }
+    - docker-compose -f docker-compose.yaml exec -T postgres-db pg_isready -U postgres; if ($LASTEXITCODE -ne 0) { Write-Output "Database check failed, continuing anyway..." }
     - echo "===== TẠO DATABASE CHO TEST ====="
-    - |
-      try {
-          docker-compose -f docker-compose.yaml exec -T postgres-db psql -U postgres -c "CREATE DATABASE auth_service_it;"
-      } catch {
-          Write-Output "Database auth_service_it đã tồn tại"
-      }
-    - |
-      try {
-          docker-compose -f docker-compose.yaml exec -T postgres-db psql -U postgres -c "CREATE DATABASE user_service_it;"
-      } catch {
-          Write-Output "Database user_service_it đã tồn tại"
-      }
+    - docker-compose -f docker-compose.yaml exec -T postgres-db psql -U postgres -c "CREATE DATABASE auth_service_it;" 2>&1 | Out-Null; if ($LASTEXITCODE -ne 0) { Write-Output "Database auth_service_it đã tồn tại (OK)" } else { Write-Output "Database auth_service_it đã được tạo" }
+    - docker-compose -f docker-compose.yaml exec -T postgres-db psql -U postgres -c "CREATE DATABASE user_service_it;" 2>&1 | Out-Null; if ($LASTEXITCODE -ne 0) { Write-Output "Database user_service_it đã tồn tại (OK)" } else { Write-Output "Database user_service_it đã được tạo" }
+    - echo "===== KIỂM TRA DATABASE ĐÃ TẠO ====="
+    - docker-compose -f docker-compose.yaml exec -T postgres-db psql -U postgres -c "\l" | Select-String -Pattern "(auth_service_it|user_service_it)" | Out-String
   script:
     - echo "===== RUN TESTS ====="
     - echo "===== SET ENVIRONMENT VARIABLES FOR TESTS ====="
     - $env:TEST_DB_USERNAME="postgres"
     - $env:TEST_DB_PASSWORD="quangtruong1"
+    - echo "TEST_DB_USERNAME=$env:TEST_DB_USERNAME"
+    - echo "TEST_DB_PASSWORD=$env:TEST_DB_PASSWORD"
     - echo "===== RUN TESTS CHO CORE ====="
     - mvn test -pl core
     - echo "===== RUN TESTS CHO AUTH-SERVICE ====="
     - $env:TEST_DB_URL="jdbc:postgresql://localhost:55432/auth_service_it"
     - echo "TEST_DB_URL=$env:TEST_DB_URL"
-    - mvn test -pl auth-service -am
+    - mvn test -pl auth-service -am -Dtest.db.url="$env:TEST_DB_URL" -Dtest.db.username="$env:TEST_DB_USERNAME" -Dtest.db.password="$env:TEST_DB_PASSWORD"
     - echo "===== RUN TESTS CHO USER-SERVICE ====="
     - $env:TEST_DB_URL="jdbc:postgresql://localhost:55432/user_service_it"
     - echo "TEST_DB_URL=$env:TEST_DB_URL"
-    - mvn test -pl user-service -am
+    - mvn test -pl user-service -am -Dtest.db.url="$env:TEST_DB_URL" -Dtest.db.username="$env:TEST_DB_USERNAME" -Dtest.db.password="$env:TEST_DB_PASSWORD"
   after_script:
     - echo "===== DỌN DẸP SAU TEST ====="
     - |
