@@ -54,22 +54,39 @@ deploy_job:
   only:
     - main
   before_script:
-    - echo "===== SETUP DOCKER ENVIRONMENT ====="
+    - echo "===== CHECK DOCKER ====="
     - docker --version
     - docker-compose --version
   script:
     - echo "===== DỪNG CÁC CONTAINER HIỆN CÓ ====="
-    - docker-compose down || echo "Không có container nào để dừng hoặc có lỗi xảy ra"
+    - |
+      try {
+          docker-compose -f .\docker-compose.yaml down
+      } catch {
+          Write-Output "Không có container nào để dừng hoặc có lỗi xảy ra"
+      }
 
     - echo "===== XÂY DỰNG VÀ KHỞI CHẠY CONTAINER ====="
-    - docker-compose -f docker-compose.yaml up -d --build
+    - docker-compose -f .\docker-compose.yaml up -d --build
 
     - echo "===== KIỂM TRA TRẠNG THÁI CONTAINER ====="
     - docker ps -a
 
     - echo "===== ĐANG CHỜ CÁC DỊCH VỤ KHỞI ĐỘNG ====="
-    - sleep 30
+    - Start-Sleep -Seconds 30
 
     - echo "===== KIỂM TRA TRẠNG THÁI DỊCH VỤ ====="
-    - curl -s http://localhost:8081/actuator/health || echo "Lỗi kiểm tra Auth Service"
-    - curl -s http://localhost:8082/actuator/health || echo "Lỗi kiểm tra User Service"
+    - |
+      try {
+          $response = Invoke-WebRequest -Uri "http://localhost:8081/actuator/health" -UseBasicParsing -TimeoutSec 5
+          Write-Output "Auth Service Health: $($response.Content)"
+      } catch {
+          Write-Output "Lỗi kiểm tra Auth Service: $_"
+      }
+    - |
+      try {
+          $response = Invoke-WebRequest -Uri "http://localhost:8082/actuator/health" -UseBasicParsing -TimeoutSec 5
+          Write-Output "User Service Health: $($response.Content)"
+      } catch {
+          Write-Output "Lỗi kiểm tra User Service: $_"
+      }
