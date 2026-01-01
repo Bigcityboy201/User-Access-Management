@@ -5,7 +5,9 @@ stages:
 
 variables:
   DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
   COMPOSE_PROJECT_NAME: user-access-management
+  # Khuyến nghị: Đổi tên biến này để Spring Boot nhận diện tự động
   SPRING_DATASOURCE_URL: "jdbc:postgresql://localhost:55432/auth-service"
   SPRING_DATASOURCE_USERNAME: "postgres"
   SPRING_DATASOURCE_PASSWORD: "quangtruong1"
@@ -25,12 +27,11 @@ cache:
 # ================= BUILD =================
 build_job:
   stage: build
-  image: maven:3.9.4-eclipse-temurin-17
+  tags:
+    - local
   script:
-    - echo "===== BUILD AUTH SERVICE ====="
-    - mvn -f auth-service/pom.xml clean package -DskipTests
-    - echo "===== BUILD USER SERVICE ====="
-    - mvn -f user-service/pom.xml clean package -DskipTests
+    - echo "===== BUILD PROJECT ====="
+    - mvn clean package -DskipTests
   artifacts:
     paths:
       - "auth-service/target/*.jar"
@@ -39,40 +40,36 @@ build_job:
 # ================= TEST =================
 test_job:
   stage: test
-  image: maven:3.9.4-eclipse-temurin-17
+  tags:
+    - local
   script:
-    - echo "===== RUN TESTS AUTH SERVICE ====="
-    - mvn -f auth-service/pom.xml test
-    - echo "===== RUN TESTS USER SERVICE ====="
-    - mvn -f user-service/pom.xml test
+    - echo "===== RUN TESTS ====="
+    - mvn test
 
 # ================= DEPLOY =================
 deploy_job:
   stage: deploy
-  image: docker:24.0.5
-  services:
-    - docker:dind
+  tags:
+    - local
   only:
     - main
   before_script:
-    - echo "===== CHECK DOCKER VERSION ====="
+    - echo "===== SETUP DOCKER ENVIRONMENT ====="
     - docker --version
     - docker-compose --version
   script:
-    - echo "===== STOP ANY EXISTING CONTAINERS ====="
-    - docker-compose -f docker-compose.yaml down || true
+    - echo "===== DỪNG CÁC CONTAINER HIỆN CÓ ====="
+    - docker-compose down || echo "Không có container nào để dừng hoặc có lỗi xảy ra"
 
-    - echo "===== BUILD AND START CONTAINERS ====="
+    - echo "===== XÂY DỰNG VÀ KHỞI CHẠY CONTAINER ====="
     - docker-compose -f docker-compose.yaml up -d --build
 
-    - echo "===== WAIT FOR SERVICES TO START ====="
-    - sleep 30
-
-    - echo "===== CHECK CONTAINERS STATUS ====="
+    - echo "===== KIỂM TRA TRẠNG THÁI CONTAINER ====="
     - docker ps -a
 
-    - echo "===== HEALTH CHECK AUTH SERVICE ====="
-    - curl -f http://localhost:8081/actuator/health || echo "Auth Service not ready"
+    - echo "===== ĐANG CHỜ CÁC DỊCH VỤ KHỞI ĐỘNG ====="
+    - sleep 30
 
-    - echo "===== HEALTH CHECK USER SERVICE ====="
-    - curl -f http://localhost:8082/actuator/health || echo "User Service not ready"
+    - echo "===== KIỂM TRA TRẠNG THÁI DỊCH VỤ ====="
+    - curl -s http://localhost:8081/actuator/health || echo "Lỗi kiểm tra Auth Service"
+    - curl -s http://localhost:8082/actuator/health || echo "Lỗi kiểm tra User Service"
