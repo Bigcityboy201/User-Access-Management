@@ -72,11 +72,11 @@ test_job:
     - echo "===== RUN TESTS CHO AUTH-SERVICE ====="
     - $env:TEST_DB_URL="jdbc:postgresql://localhost:55432/auth_service_it"
     - echo "TEST_DB_URL=$env:TEST_DB_URL"
-    - mvn test -pl auth-service -am -Dtest.db.url="$env:TEST_DB_URL" -Dtest.db.username="$env:TEST_DB_USERNAME" -Dtest.db.password="$env:TEST_DB_PASSWORD"
+    - mvn test -pl auth-service -am
     - echo "===== RUN TESTS CHO USER-SERVICE ====="
     - $env:TEST_DB_URL="jdbc:postgresql://localhost:55432/user_service_it"
     - echo "TEST_DB_URL=$env:TEST_DB_URL"
-    - mvn test -pl user-service -am -Dtest.db.url="$env:TEST_DB_URL" -Dtest.db.username="$env:TEST_DB_USERNAME" -Dtest.db.password="$env:TEST_DB_PASSWORD"
+    - mvn test -pl user-service -am
   after_script:
     - echo "===== DỌN DẸP SAU TEST ====="
     - |
