@@ -42,9 +42,65 @@ test_job:
   stage: test
   tags:
     - local
+  before_script:
+    - echo "===== SETUP DOCKER ENVIRONMENT FOR TESTS ====="
+    - docker --version
+    - docker-compose --version
+    - echo "===== XÓA CONTAINER CŨ (NẾU CÓ) ====="
+    - |
+      try {
+          docker-compose -f docker-compose.yaml down
+      } catch {
+          Write-Output "No containers to stop"
+      }
+    - echo "===== KHỞI ĐỘNG DATABASE VÀ KAFKA ====="
+    - docker-compose -f docker-compose.yaml up -d postgres-db kafka zookeeper
+    - echo "===== CHỜ DATABASE SẴN SÀNG ====="
+    - Start-Sleep -Seconds 15
+    - echo "===== KIỂM TRA DATABASE ====="
+    - |
+      try {
+          docker-compose -f docker-compose.yaml exec -T postgres-db pg_isready -U postgres
+      } catch {
+          Write-Output "Database check failed, continuing anyway..."
+      }
+    - echo "===== TẠO DATABASE CHO TEST ====="
+    - |
+      try {
+          docker-compose -f docker-compose.yaml exec -T postgres-db psql -U postgres -c "CREATE DATABASE auth_service_it;"
+      } catch {
+          Write-Output "Database auth_service_it đã tồn tại"
+      }
+    - |
+      try {
+          docker-compose -f docker-compose.yaml exec -T postgres-db psql -U postgres -c "CREATE DATABASE user_service_it;"
+      } catch {
+          Write-Output "Database user_service_it đã tồn tại"
+      }
   script:
     - echo "===== RUN TESTS ====="
-    - mvn test
+    - echo "===== SET ENVIRONMENT VARIABLES FOR TESTS ====="
+    - $env:TEST_DB_USERNAME="postgres"
+    - $env:TEST_DB_PASSWORD="quangtruong1"
+    - echo "===== RUN TESTS CHO CORE ====="
+    - mvn test -pl core
+    - echo "===== RUN TESTS CHO AUTH-SERVICE ====="
+    - $env:TEST_DB_URL="jdbc:postgresql://localhost:55432/auth_service_it"
+    - echo "TEST_DB_URL=$env:TEST_DB_URL"
+    - mvn test -pl auth-service -am
+    - echo "===== RUN TESTS CHO USER-SERVICE ====="
+    - $env:TEST_DB_URL="jdbc:postgresql://localhost:55432/user_service_it"
+    - echo "TEST_DB_URL=$env:TEST_DB_URL"
+    - mvn test -pl user-service -am
+  after_script:
+    - echo "===== DỌN DẸP SAU TEST ====="
+    - |
+      try {
+          docker-compose -f docker-compose.yaml down
+      } catch {
+          Write-Output "Cleanup failed"
+      }
+  allow_failure: false
 
 # ================= DEPLOY =================
 deploy_job:
